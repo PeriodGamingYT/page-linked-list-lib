@@ -34,16 +34,19 @@ size_t BytesInPage() {
 
 int main() {
 
-	// This is meant to demonstrate the usage of PageLinkedList and also
+	// NOTE: This is meant to demonstrate the usage of PageLinkedList and also
 	// act as a test suite.
 	PageLinkedList linkedList = InitPageLinkedList(sizeof(int));
-	for(int i = 0; i < 5000; i++) {
+	for(int i = 0; i < 200000; i++) {
 		*(int *)(PageLinkedListAppend(&linkedList, 1)) = i;
 	}
 
 	PageLinkedListIterator iterator = InitPageLinkedListIterator(&linkedList);
 	do {
-		fprintf(stderr, "%d\n", *(int *)(iterator.currentElement));
+
+		// NOTE: This is commented out because printing all these out takes a
+		// fair bit of time.
+		// fprintf(stderr, "%d\n", *(int *)(iterator.currentElement));
 	} while(PageLinkedListIteratorNext(&iterator, 1));
 
 	DeinitPageLinkedList(&linkedList);

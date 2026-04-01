@@ -158,6 +158,11 @@
 		while(currentCellArray != NULL) {
 			PageCell *cells = PageCellArrayFirstCell(currentCellArray);
 			for(int i = 0; i < currentCellArray->cellAmount; i++) {
+				if(
+					cells[i].amount <= 0 || cells[i].cap <= 0 ||
+					cells[i].buffer == NULL
+				) { continue; }
+
 				PAGE_LINKED_LIST_DEINIT_PAGE(&cells[i].buffer);
 			}
 
