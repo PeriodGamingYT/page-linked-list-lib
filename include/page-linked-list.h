@@ -1,10 +1,12 @@
 #ifndef PAGE_LINKED_LIST_H
 #define PAGE_LINKED_LIST_H
 
-	// NOTE: This single header library is based off of a Gist, whose URL is as follows:
+	// NOTE: This single header library is based off of a Gist, whose URL is as
+	// follows:
 	// https://gist.github.com/PeriodGamingYT/75f921f7b66e05100ce1f35da6b51baf
 
-	//// Guard clauses to ensure user has given all appropriate information needed for library to operate.
+	//// Guard clauses to ensure user has given all appropriate information
+	// needed for library to operate.
 	#ifndef PAGE_LINKED_LIST_INIT_PAGE_FUNC
 		#error "PAGE_LINKED_LIST_INIT_PAGE_FUNC isn't defined:"
 		#error "Give a method that conforms to uint8_t *funcName(size_t) that will allocate memory, preferably a memory page."
@@ -36,8 +38,9 @@
 		uint8_t *buffer;
 	} PageCell;
 
-	// NOTE: This struct is identical to PageCell and is only here to clarify semantic meaning. Casting a PageCell
-	// to a PageCellArrayHeaderStruct and vice versa results in no data loss.
+	// NOTE: This struct is identical to PageCell and is only here to clarify
+	// semantic meaning. Casting a PageCell to a PageCellArrayHeaderStruct and
+	// vice versa results in no data loss.
 	typedef struct PageCellArrayHeaderStruct {
 		size_t cellAmount, cellCap;
 		PageCellArrayHeader *nextCellArray;
@@ -47,28 +50,30 @@
 
 		// NOTE: A PageLinkedList contains PageCells which contain elements.
 		//
-		// NOTE: PageLinkedList will enforce everything within its pages to conform to the same size
-		// in order to not introduce fragmentation. However, this doesn't mean that elements of varying size can't
-		// be done with this data structure, bytePerElement just must be equal to sizeof(uint8_t).
+		// NOTE: PageLinkedList will enforce everything within its pages to
+		// conform to the same size in order to not introduce fragmentation.
+		// However, this doesn't mean that elements of varying size can't be
+		// done with this data structure, bytePerElement just must be equal to
+		// sizeof(uint8_t).
 		size_t bytesPerElement, defaultCellCap;
 		PageCellArrayHeader *firstCellArray;
 
-		// NOTE: This is for appending memory, having the last page cell array on demand makes appending
-		// memory much easier and faster.
+		// NOTE: This is for appending memory, having the last page cell array
+		// on demand makes appending memory much easier and much faster.
 		PageCellArrayHeader *lastCellArray;
 	} PageLinkedList;
 
-	PageCell *PageCellArrayFirstCell(PageCellArrayHeader *arrayHeader);
-	PageCell *PageCellArrayLastCell(PageCellArrayHeader *arrayHeader);
-	PageCellArrayHeader *PageCellArrayNextCellArray(PageCellArrayHeader *arrayHeader);
+	PageCell *PageCellArrayFirstCell(PageCellArrayHeader *);
+	PageCell *PageCellArrayLastCell(PageCellArrayHeader *);
+	PageCellArrayHeader *PageCellArrayNextCellArray(PageCellArrayHeader *);
 
-	PageLinkedList InitPageLinkedList(size_t bytesPerElement, size_t defaultCellCap);
-	void DeinitPageLinkedList(PageLinkedList *linkedList);
+	PageLinkedList InitPageLinkedList(size_t, size_t);
+	void DeinitPageLinkedList(PageLinkedList *);
 
 	// NOTE: pageCap is in bytes.
-	PageCell *PageLinkedListAppendCustomPage(PageLinkedList *linkedList, size_t pageCap);
-	PageCell *PageLinkedListAppendPage(PageLinkedList *linkedList);
-	uint8_t *PageLinkedListAppend(PageLinkedList *linkedList, size_t amountToAppend);
+	PageCell *PageLinkedListAppendCustomPage(PageLinkedList *, size_t);
+	PageCell *PageLinkedListAppendPage(PageLinkedList *);
+	uint8_t *PageLinkedListAppend(PageLinkedList *, size_t);
 
 	// NOTE: PageCell is used as the return type here because it has a amount
 	// and buffer, PageCell can act as a memory arena. Here, PageCell.amount ==
@@ -87,192 +92,249 @@
 
 	// NOTE: Since PageLinkedListIterator doesn't hold any memory on its own,
 	// DeinitPageLinkedListIterator() isn't necessary.
-	PageLinkedListIterator InitPageLinkedListIterator(PageLinkedList *linkedList);
+	PageLinkedListIterator InitPageLinkedListIterator(PageLinkedList *);
 
-	// NOTE: These *Next* functions will only reset their relevant cell array/cell/element.
-	// Resetting any other relevant cell/element is the responsibility of the caller.
-	Bool PageLinkedListIteratorNextCellArray(PageIterator *iterator, size_t increaseAmount);
-	Bool PageLinkedListIteratorNextCell(PageIterator *iterator, size_t increaseAmount);
-	Bool PageLinkedListIteratorNext(PageIterator *iterator, size_t increaseAmount);
+	// NOTE: These *Next* functions will only reset their relevant cell
+	// array/cell/element. Resetting any other relevant cell/element is the
+	// responsibility of the caller.
+	Bool PageLinkedListIteratorNextCellArray(PageIterator *, size_t);
+	Bool PageLinkedListIteratorNextCell(PageIterator *, size_t);
+	Bool PageLinkedListIteratorNext(PageIterator *, size_t);
 
-	size_t PageLinkedListGetTotalSize(PageLinkedList *linkedList);
-	PageCell PageLinkedListAsFlatMemory(PageLinkedList *linkedList);
+	size_t PageLinkedListGetTotalSize(PageLinkedList *);
+	PageCell PageLinkedListAsFlatMemory(PageLinkedList *);
 
-	uint8_t *PageLinkedListGetAtIndex(PageLinkedList *linkedList, size_t index);
+	uint8_t *PageLinkedListGetAtIndex(PageLinkedList *, size_t);
+#endif
 
-	#ifdef PAGE_LINKED_LIST_IMPL
-		PageCell *PageLinkedListAppendCustomPage(PageLinkedList *linkedList, size_t pageCap) {
-			if(
-				linkedList->lastCellArray->cellAmount >=
-				linkedList->lastCellArray->cellCap
-			) {
-				PageCellArrayHeader *newCellArray = (PageCellArrayHeader *)(InitPage(
+// NOTE: This is put outside of the guard clause because a user might include
+// only the header part and then in another file include the implementation
+// part.
+#ifdef PAGE_LINKED_LIST_IMPL
+	PageCell *PageLinkedListAppendCustomPage(
+		PageLinkedList *linkedList, size_t pageCap
+	) {
+		if(
+			linkedList->lastCellArray->cellAmount >=
+			linkedList->lastCellArray->cellCap
+		) {
+			PageCellArrayHeader *newCellArray = (PageCellArrayHeader *)(
+				PAGE_LINKED_LIST_INIT_PAGE(
 					sizeof(PageCell) * linkedList->cellArrayCap
-				));
+				)
+			);
 
-				if(newCellArray == NULL) { return NULL; }
+			if(newCellArray == NULL) { return NULL; }
 
-				*newCellArray = (PageCellArrayHeader) {
-					.cellAmount = 1, .cellCap = linkedList->cellArrayCap
-				};
-
-				linkedList->lastCellArray->nextCellArray = newCellArray;
-				linkedList->lastCellArray = newCellArray;
-			}
-
-			linkedList->lastCellArray->cellAmount++;
-			PageCell *result = PageCellArrayLastCell(linkedList->lastCellArray);
-
-			uint8_t *newPage = InitPage(pageCap * linkedList->bytesPerElement);
-			if(newPage == NULL) { return NULL; }
-
-			*result = (PageCell) {
-				.amount = 0, .cap = pageCap,
-				.buffer = newPage
+			*newCellArray = (PageCellArrayHeader) {
+				.cellAmount = 1, .cellCap = linkedList->cellArrayCap
 			};
 
-			return result;
+			linkedList->lastCellArray->nextCellArray = newCellArray;
+			linkedList->lastCellArray = newCellArray;
 		}
 
-		PageCell *PageLinkedListAppendPage(PageLinkedList *linkedList) {
-			return PageLinkedListAppendCustomPage(linkedList, linkedList->defaultCellCap);
+		linkedList->lastCellArray->cellAmount++;
+		PageCell *result = PageCellArrayLastCell(linkedList->lastCellArray);
+
+		uint8_t *newPage = PAGE_LINKED_LIST_INIT_PAGE(
+			pageCap * linkedList->bytesPerElement
+		);
+
+		if(newPage == NULL) { return NULL; }
+
+		*result = (PageCell) {
+			.amount = 0, .cap = pageCap,
+			.buffer = newPage
+		};
+
+		return result;
+	}
+
+	PageCell *PageLinkedListAppendPage(PageLinkedList *linkedList) {
+		return PageLinkedListAppendCustomPage(
+			linkedList, linkedList->defaultCellCap
+		);
+	}
+
+	uint8_t *PageLinkedListAppend(
+		PageLinkedList *linkedList, size_t amountToAppend
+	) {
+
+		// NOTE: This is intended for extraordinarily large pages.
+		if(amountToAppend > linkedList->defaultCellCap) {
+			PageCell *newCell = PageLinkedListAppendCustomPage(
+				linkedList, amountToAppend
+			);
+
+			if(newCell == NULL) { return NULL; }
+
+			return newCell->buffer;
 		}
 
-		uint8_t *PageLinkedListAppend(PageLinkedList *linkedList, size_t amountToAppend) {
-
-			// NOTE: This is intended for extraordinarily large pages.
-			if(amountToAppend > linkedList->defaultCellCap) {
-				PageCell *newCell = PageLinkedListAppendCustomPage(linkedList, amountToAppend);
-				if(newCell == NULL) { return NULL; }
-
-				return newCell->buffer;
-			}
-
-			PageCell *lastCell = PageCellArrayLastCell(linkedList->lastCellArray);
-			if(lastCell->amount + amountToAppend > lastCell->cap) {
-				PageCell *newCell = PageLinkedListAppendPage(linkedList);
-				if(newCell == NULL)  { return NULL; }
-				lastCell = PageCellArrayLastCell(newCell);
-			}
-
-			uint8_t *result = &lastCell->buffer[
-				linkedList->bytesPerElemnt * lastCell->amount
-			];
-
-			lastCell->amount += amountToAppend;
-			return result;
+		PageCell *lastCell = PageCellArrayLastCell(linkedList->lastCellArray);
+		if(lastCell->amount + amountToAppend > lastCell->cap) {
+			PageCell *newCell = PageLinkedListAppendPage(linkedList);
+			if(newCell == NULL)  { return NULL; }
+			lastCell = PageCellArrayLastCell(newCell);
 		}
 
-		PageLinkedListIterator InitPageLinkedListIterator(PageLinkedList *linkedList) {
-			PageLinkedListIterator result = {
-				.linkedList = linkedList,
+		uint8_t *result = &lastCell->buffer[
+			linkedList->bytesPerElemnt * lastCell->amount
+		];
 
-				.currentCellArray = linkedList->firstCellArray
-			};
+		lastCell->amount += amountToAppend;
+		return result;
+	}
 
-			result.currentCell = PageCellArrayFirstCell(result.currentCellArray);
-			result.currentElement = &result.currentCell->buffer[0];
-			return result;
+	PageLinkedListIterator InitPageLinkedListIterator(
+		PageLinkedList *linkedList
+	) {
+		PageLinkedListIterator result = {
+			.linkedList = linkedList,
+
+			.currentCellArray = linkedList->firstCellArray
+		};
+
+		result.currentCell = PageCellArrayFirstCell(result.currentCellArray);
+		result.currentElement = &result.currentCell->buffer[0];
+		return result;
+	}
+
+	Bool PageLinkedListIteratorNextCellArray(
+		PageIterator *iterator, size_t increaseAmount
+	) {
+		for(
+			int i = 0;
+			iterator->currentCellArray != NULL && i < increaseAmount;
+			i++
+		) {
+			iterator->currentCellArray = PageCellArrayNextCellArray(
+				iterator->currentCellArray
+			);
 		}
 
-		Bool PageLinkedListIteratorNextCellArray(PageIterator *iterator, size_t increaseAmount) {
-			for(
-				int i = 0;
-				iterator->currentCellArray != NULL && i < increaseAmount;
-				i++
+
+		if(iterator->currentCellArray == NULL) { return FALSE; }
+		return TRUE;
+	}
+
+	Bool PageLinkedListIteratorNextCell(
+		PageIterator *iterator, size_t increaseAmount
+	) {
+		iterator->currentCellIndex += increaseAmount;
+
+		if(
+			iterator->currentCellIndex >=
+			iterator->currentCellArray->cellAmount
+		) {
+
+			// NOTE: This is a while loop that goes through the cells one by
+			// one since assumptions about each individual page cell amount
+			// can't be made without creating bugs.
+			while(
+				iterator->currentCellIndex >=
+				iterator->currentCellArray->cellAmount
 			) {
-				iterator->currentCellArray = PageCellArrayNextCellArray(iterator->currentCellArray);
-			}
-
-
-			if(iterator->currentCellArray == NULL) { return FALSE; }
-			return TRUE;
-		}
-
-		Bool PageLinkedListIteratorNextCell(PageIterator *iterator, size_t increaseAmount) {
-			iterator->currentCellIndex += increaseAmount;
-
-			if(iterator->currentCellIndex >= iterator->currentCellArray->cellAmount) {
-
-				// NOTE: This is a while loop that goes through the cells one by one
-				// since assumptions about each individual page cell amount can't be made
-				// without creating bugs.
-				while(iterator->currentCellIndex >= iterator->currentCellArray->cellAmount) {
-					iterator->currentCellIndex -= iterator->currentCellArray->cellAmount;
-					if(!PageLinkedListNextCellArray(iterator, 1)) { return FALSE; }
-				}
-
-				iterator->currentCell = PageCellArrayFirstCell(iterator->currentCellArray);
-				iterator->currentCell += iterator->currentCellIndex;
-				return TRUE;
-			}
-
-			iterator->currentCell += increaseAmount;
-			return TRUE;
-		}
-
-		Bool PageLinkedListIteratorNext(PageIterator *iterator, size_t increaseAmount) {
-			iterator->currentElementIndex += increaseAmount;
-			if(iterator->currentElementIndex >= iterator->currentCell->amount) {
-
-				// NOTE: This is a while loop that goes through the cell's elements
-				// one by one since assumptions about each individual page cell amount
-				// can't me made without creating bugs.
-				while(iterator->currentElementIndex >= iterator->currentCell->amount) {
-					iterator->currentElementIndex -= iterator->currentCell->amount;
-					if(!PageLinkedListIteratorNextCell(iterator, 1)) { return FALSE; }
-				}
-			}
-
-			iterator->currentElement = &iterator->currentCell->buffer[
-				iterator->linkedList->bytesPerElement * iterator->currentElementIndex
-			];
-
-			return TRUE;
-		}
-
-		size_t PageLinkedListGetTotalSize(PageLinkedList *linkedList) {
-			size_t result = 0;
-			PageLinkedListIterator iterator = InitPageLinkedListIterator(linkedList);
-			do {
-				result += iterator.currentCell->amount;
-			} while(PageLinkedListIteratorNextCell(&iterator, 1));
-
-			return result;
-		}
-
-		PageCell PageLinkedListAsFlatMemory(PageLinkedList *linkedList) {
-			size_t totalSize = PageLinkedListGetTotalSize(linkedList);
-			PageCell result = {
-				.amount = totalSize, .cap = totalSize,
-				.buffer = InitPage(totalSize)
-			};
-
-			size_t currentIndex = 0;
-
-			PageLinkedListIterator iterator = InitPageLinkedListIterator(linkedList);
-			do {
-				size_t byteAmount = (
-					linkedList->bytesPerElement *
-					iterator.currentCell->amount
+				iterator->currentCellIndex -= (
+					iterator->currentCellArray->cellAmount
 				);
 
-				memcpy(
-					&result.buffer[currentIndex],
-					&iterator.currentCell->buffer[0],
-					byteAmount
-				);
+				if(!PageLinkedListNextCellArray(iterator, 1)) { return FALSE; }
+			}
 
-				currentIndex += byteAmount;
-			} while(PageLinkedListIteratorNextCell(&iterator, 1));
+			iterator->currentCell = PageCellArrayFirstCell(
+				iterator->currentCellArray
+			);
 
-			return result;
+			iterator->currentCell += iterator->currentCellIndex;
+			return TRUE;
 		}
 
-		uint8_t *PageLinkedListGetAtIndex(PageLinkedList *linkedList, size_t index) {
-			PageLinkedListIterator iterator = PageLinkedListIteratorInit(linkedList);
-			if(!PageLinkedListIteratorNext(&iterator, index)) { return NULL; }
-			return iterator->currentElement;
+		iterator->currentCell += increaseAmount;
+		return TRUE;
+	}
+
+	Bool PageLinkedListIteratorNext(
+		PageIterator *iterator, size_t increaseAmount
+	) {
+		iterator->currentElementIndex += increaseAmount;
+		if(iterator->currentElementIndex >= iterator->currentCell->amount) {
+
+			// NOTE: This is a while loop that goes through the cell's elements
+			// one by one since assumptions about each individual page cell
+			// amount can't me made without creating bugs.
+			while(
+				iterator->currentElementIndex >=
+				iterator->currentCell->amount
+			) {
+				iterator->currentElementIndex -= iterator->currentCell->amount;
+				if(!PageLinkedListIteratorNextCell(iterator, 1)) {
+					return FALSE;
+				}
+			}
 		}
-	#endif
+
+		iterator->currentElement = &iterator->currentCell->buffer[
+			iterator->linkedList->bytesPerElement *
+			iterator->currentElementIndex
+		];
+
+		return TRUE;
+	}
+
+	size_t PageLinkedListGetTotalSize(PageLinkedList *linkedList) {
+		size_t result = 0;
+		PageLinkedListIterator iterator = InitPageLinkedListIterator(
+			linkedList
+		);
+
+		do {
+			result += iterator.currentCell->amount;
+		} while(PageLinkedListIteratorNextCell(&iterator, 1));
+
+		return result;
+	}
+
+	PageCell PageLinkedListAsFlatMemory(PageLinkedList *linkedList) {
+		size_t totalSize = PageLinkedListGetTotalSize(linkedList);
+		PageCell result = {
+			.amount = totalSize, .cap = totalSize,
+			.buffer = PAGE_LINKED_LIST_INIT_PAGE(totalSize)
+		};
+
+		size_t currentIndex = 0;
+
+		PageLinkedListIterator iterator = InitPageLinkedListIterator(
+			linkedList
+		);
+
+		do {
+			size_t byteAmount = (
+				linkedList->bytesPerElement *
+				iterator.currentCell->amount
+			);
+
+			memcpy(
+				&result.buffer[currentIndex],
+				&iterator.currentCell->buffer[0],
+				byteAmount
+			);
+
+			currentIndex += byteAmount;
+		} while(PageLinkedListIteratorNextCell(&iterator, 1));
+
+		return result;
+	}
+
+	uint8_t *PageLinkedListGetAtIndex(
+		PageLinkedList *linkedList, size_t index
+	) {
+		PageLinkedListIterator iterator = PageLinkedListIteratorInit(
+			linkedList
+		);
+
+		if(!PageLinkedListIteratorNext(&iterator, index)) { return NULL; }
+		return iterator->currentElement;
+	}
 #endif
