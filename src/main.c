@@ -27,7 +27,7 @@ size_t BytesInPage() {
 	// NOTE: POSIX version of this would be using getconf().
 	SYSTEM_INFO systemInfo = { 0 };
 	GetSystemInfo(&systemInfo);
-	size_t bytesInPage = (size_t)(systemInfo.dwPageSize);
+	return (size_t)(systemInfo.dwPageSize);
 }
 
 int WINAPI WinMain(

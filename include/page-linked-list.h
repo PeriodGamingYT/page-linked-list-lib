@@ -295,7 +295,7 @@
 					iterator->currentCellArray->cellAmount
 				);
 
-				if(!PageLinkedListNextCellArray(iterator, 1)) { return FALSE; }
+				if(!PageLinkedListIteratorNextCellArray(iterator, 1)) { return FALSE; }
 			}
 
 			iterator->currentCell = PageCellArrayFirstCell(
