@@ -5,24 +5,39 @@
 
 #include <stdio.h>
 
-uint8_t *InitPage(size_t byteAmount) {
+// NOTE: InitPage and DeinitPage's allocation mechanisms are changed
+// during debugging so that address sanitizer can catch any leaks (malloc and
+// free are intercepted when running with address sanitizer).
+#ifdef DEBUG_MODE
+	uint8_t *InitPage(size_t byteAmount) {
+		return (uint8_t *)(malloc(byteAmount));
+	}
 
-	// NOTE: POSIX version of this would be using mmap().
-	return VirtualAlloc(
-		NULL,
-		byteAmount,
-		MEM_RESERVE | MEM_COMMIT,
-		PAGE_READWRITE
-	);
-}
+	void DeinitPage(uint8_t **bufferPointer) {
+		if(*bufferPointer == NULL) { return; }
+		free(*bufferPointer);
+		*bufferPointer = NULL;
+	}
+#else
+	uint8_t *InitPage(size_t byteAmount) {
 
-void DeinitPage(uint8_t **bufferPointer) {
-	if(*bufferPointer == NULL) { return; }
+		// NOTE: POSIX version of this would be using mmap().
+		return (uint8_t *)(VirtualAlloc(
+			NULL,
+			byteAmount,
+			MEM_RESERVE | MEM_COMMIT,
+			PAGE_READWRITE
+		));
+	}
 
-	// NOTE: POSIX version of this would be using munmap().
-	VirtualFree(*bufferPointer, 0, MEM_RELEASE);
-	*bufferPointer = NULL;
-}
+	void DeinitPage(uint8_t **bufferPointer) {
+		if(*bufferPointer == NULL) { return; }
+
+		// NOTE: POSIX version of this would be using munmap().
+		VirtualFree(*bufferPointer, 0, MEM_RELEASE);
+		*bufferPointer = NULL;
+	}
+#endif
 
 size_t BytesInPage() {
 

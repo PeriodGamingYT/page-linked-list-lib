@@ -310,7 +310,7 @@
 
 		if(
 			iterator->currentCellIndex >=
-			iterator->currentCellArray->cellAmount
+			iterator->currentCellArray->cellAmount - 1
 		) {
 
 			// NOTE: This is a while loop that goes through the cells one by
@@ -318,7 +318,7 @@
 			// can't be made without creating bugs.
 			while(
 				iterator->currentCellIndex >=
-				iterator->currentCellArray->cellAmount
+				iterator->currentCellArray->cellAmount - 1
 			) {
 				iterator->currentCellIndex -= (
 					iterator->currentCellArray->cellAmount
@@ -345,14 +345,17 @@
 		PageLinkedListIterator *iterator, size_t increaseAmount
 	) {
 		iterator->currentElementIndex += increaseAmount;
-		if(iterator->currentElementIndex >= iterator->currentCell->amount) {
+		if(
+			iterator->currentElementIndex >=
+			iterator->currentCell->amount - 1
+		) {
 
 			// NOTE: This is a while loop that goes through the cell's elements
 			// one by one since assumptions about each individual page cell
 			// amount can't me made without creating bugs.
 			while(
 				iterator->currentElementIndex >=
-				iterator->currentCell->amount
+				iterator->currentCell->amount - 1
 			) {
 				iterator->currentElementIndex -= iterator->currentCell->amount;
 				if(!PageLinkedListIteratorNextCell(iterator, 1)) {
@@ -390,7 +393,6 @@
 		};
 
 		size_t currentIndex = 0;
-
 		PageLinkedListIterator iterator = InitPageLinkedListIterator(
 			linkedList
 		);

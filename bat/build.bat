@@ -22,7 +22,7 @@ PUSHD %~dp0\..
 POPD
 
 REM Default parameters
-SET DebugCompilerFlags=/Zi /MTd /D DEBUG_MODE /DEBUG
+SET DebugCompilerFlags=/Zi /MTd /D DEBUG_MODE /DEBUG /fsanitize=address
 SET ReleaseCompilerFlags=/O2
 
 SET DefaultUseDebug=1
