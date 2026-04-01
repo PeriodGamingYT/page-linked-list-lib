@@ -128,7 +128,8 @@
 		PageCell *arrayHeaderAsCell = (PageCell *)((void *)(arrayHeader));
 
 		// NOTE: Since the first cell in a page cell array is reserved for an
-		// array header, the next element will be used to hold actual page cells.
+		// array header, the next element will be used to hold actual page
+		// cells.
 		return &arrayHeaderAsCell[1];
 	}
 
@@ -295,7 +296,9 @@
 					iterator->currentCellArray->cellAmount
 				);
 
-				if(!PageLinkedListIteratorNextCellArray(iterator, 1)) { return FALSE; }
+				if(!PageLinkedListIteratorNextCellArray(iterator, 1)) {
+					return FALSE;
+				}
 			}
 
 			iterator->currentCell = PageCellArrayFirstCell(
