@@ -17,6 +17,11 @@
 		#error "Give a method that conforms to void funcName(uint8_t **) that will deallocate memory."
 	#endif
 
+	#ifndef PAGE_LINKED_LIST_BYTES_IN_PAGE_FUNC
+		#error "PAGE_LINKED_LIST_BYTES_IN_PAGE_FUNC isn't defined:"
+		#error "Give a method that conforms to size_t funcName() that will return the amount of bytes in a single page of memory."
+	#endif
+
 	//// Struct forward/unfilled declarations.
 	typedef struct PageCellStruct PageCell;
 	typedef struct PageCellArrayHeaderStruct PageCellArrayHeader;
@@ -26,13 +31,20 @@
 	//// Base includes, defines, and typedefs.
 	#include <stdint.h>
 
+
 	#define PAGE_LINKED_LIST_INIT_PAGE(_byteAmount) \
 		PAGE_LINKED_LIST_INIT_PAGE_FUNC ((_byteAmount))
 
 	#define PAGE_LINKED_LIST_DEINIT_PAGE(_bufferPointer) \
 		PAGE_LINKED_LIST_DEINIT_PAGE_FUNC ((_bufferPointer))
 
+	#define PAGE_LINKED_LIST_BYTES_IN_PAGE_AMOUNT() \
+		PAGE_LINKED_LIST_BYTES_IN_PAGE_FUNC ()
 
+	typedef uint8_t Bool;
+
+
+	//// Single header structs and forward/unfilled function declarations.
 	typedef struct PageCellStruct {
 		size_t amount, cap;
 		uint8_t *buffer;
@@ -111,6 +123,44 @@
 // only the header part and then in another file include the implementation
 // part.
 #ifdef PAGE_LINKED_LIST_IMPL
+	PageCell *PageCellArrayFirstCell(PageCellArrayHeader *arrayHeader) {
+
+		// NOTE: Since the first cell in a page cell array is reserved for an
+		// array header, the next element will be used to hold actual page cells.
+		return &((PageCell *)(arrayHeader)[1]);
+	}
+
+	PageCell *PageCellArrayLastCell(PageCellArrayHeader *arrayHeader) {
+		return &((PageCell *)(arrayHeader)[arrayHeader->amount - 1]);
+	}
+
+	PageCellArrayHeader *PageCellArrayNextCellArray(PageCellArrayHeader *arrayHeader) {
+		return (PageCellArrayHeader *)(arrayHeader->buffer);
+	}
+
+	PageLinkedList InitPageLinkedList(size_t bytesPerElement) {
+		size_t bytesInPage = PAGE_LINKED_LIST_BYTES_IN_PAGE_AMOUNT();
+		return (PageLinkedList) {
+			.bytesPerElement = bytesPerElement,
+			.defaultCellCap = bytesInPage / bytesPerElement,
+			.cellArrayCap = bytesInPage / sizeof(PageCell)
+		};
+	}
+
+	void DeinitPageLinkedList(PageLinkedList *linkedList) {
+		PageCellArrayHeader *currentCellArray = linkedList->firstCellArray;
+		while(currentCellArray != NULL) {
+			PageCell *cells = PageCellArrayFirstCell(currentCellArray);
+			for(int i = 0; i < currentCellArray.amount; i++) {
+				PAGE_LINKED_LIST_DEINIT_PAGE(&cells[i].buffer);
+			}
+
+			PageCellArrayHeader *tempCellArray = currentCellArray;
+			currentCellArray = PageCellArrayNextCellArray(currentCellArray);
+			PAGE_LINKED_LIST_DEINIT_PAGE((uint8_t **)(&tempCellArray));
+		}
+	}
+
 	PageCell *PageLinkedListAppendCustomPage(
 		PageLinkedList *linkedList, size_t pageCap
 	) {
