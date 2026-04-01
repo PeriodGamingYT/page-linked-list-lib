@@ -9,7 +9,7 @@
 	// needed for library to operate.
 	#ifndef PAGE_LINKED_LIST_INIT_PAGE_FUNC
 		#error "PAGE_LINKED_LIST_INIT_PAGE_FUNC isn't defined:"
-		#error "Give a method that conforms to uint8_t *funcName(size_t) that will allocate memory, preferably a memory page."
+		#error "Give a method that conforms to uint8_t *funcName(size_t) that will allocate zeroed memory, preferably as a memory page."
 	#endif
 
 	#ifndef PAGE_LINKED_LIST_DEINIT_PAGE_FUNC
