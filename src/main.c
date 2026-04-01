@@ -3,6 +3,8 @@
 #define PAGE_LINKED_LIST_IMPL
 #include <page-linked-list.h>
 
+#include <stdio.h>
+
 uint8_t *InitPage(size_t byteAmount) {
 
 	// NOTE: POSIX version of this would be using mmap().
@@ -30,16 +32,23 @@ size_t BytesInPage() {
 	return (size_t)(systemInfo.dwPageSize);
 }
 
-int WINAPI WinMain(
-	HINSTANCE appHandle,
-	HINSTANCE legacyPrevAppHandle,
-	LPSTR commandLine,
-	int windowShowFlags
-) {
-	(void)(legacyPrevAppHandle);
-	(void)(commandLine);
-	(void)(windowShowFlags);
+int main() {
 
-	// ...
+	// This is meant to demonstrate the usage of PageLinkedList and also
+	// act as a test suite.
+	PageLinkedList linkedList = InitPageLinkedList(sizeof(int));
+	for(int i = 0; i < 5000; i++) {
+		*(int *)(PageLinkedListAppend(&linkedList, 1)) = i;
+	}
+
+	PageLinkedListIterator iterator = InitPageLinkedListIterator(&linkedList);
+	do {
+		fprintf(stderr, "%d\n", *(int *)(iterator.currentElement));
+	} while(PageLinkedListIteratorNext(&iterator, 1));
+
+	DeinitPageLinkedList(&linkedList);
+
+	printf("Press any key to exit this program's console\n");
+	getchar();
 	return 0;
 }

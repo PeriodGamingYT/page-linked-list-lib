@@ -80,7 +80,7 @@ PUSHD %~dp0\..
 			/I..\include ^
 				!CompilerFlags! ^
 				%FilesToCompile% ^
-			/link /OUT:main.exe
+			/link /OUT:main.exe /SUBSYSTEM:CONSOLE
 
 		IF %ERRORLEVEL% NEQ 0 (
 			ECHO Compiling failed, shutting down with error...

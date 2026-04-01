@@ -170,6 +170,26 @@
 	PageCell *PageLinkedListAppendCustomPage(
 		PageLinkedList *linkedList, size_t pageCap
 	) {
+
+		// NOTE: If the first cell array in a page linked list is null, this
+		// means that the last cell array will also be null.
+		if(linkedList->firstCellArray == NULL) {
+			PageCellArrayHeader *newCellArray = (PageCellArrayHeader *)(
+				PAGE_LINKED_LIST_INIT_PAGE(
+					sizeof(PageCell) * linkedList->cellArrayCap
+				)
+			);
+
+			if(newCellArray == NULL) { return NULL; }
+
+			*newCellArray = (PageCellArrayHeader) {
+				.cellAmount = 1, .cellCap = linkedList->cellArrayCap
+			};
+
+			linkedList->firstCellArray = newCellArray;
+			linkedList->lastCellArray = newCellArray;
+		}
+
 		if(
 			linkedList->lastCellArray->cellAmount >=
 			linkedList->lastCellArray->cellCap
@@ -216,6 +236,9 @@
 	uint8_t *PageLinkedListAppend(
 		PageLinkedList *linkedList, size_t amountToAppend
 	) {
+		if(linkedList->firstCellArray == NULL) {
+			PageLinkedListAppendPage(linkedList);
+		}
 
 		// NOTE: This is intended for extraordinarily large pages.
 		if(amountToAppend > linkedList->defaultCellCap) {
