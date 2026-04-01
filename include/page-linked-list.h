@@ -31,7 +31,6 @@
 	//// Base includes, defines, and typedefs.
 	#include <stdint.h>
 
-
 	#define PAGE_LINKED_LIST_INIT_PAGE(_byteAmount) \
 		PAGE_LINKED_LIST_INIT_PAGE_FUNC ((_byteAmount))
 
@@ -67,7 +66,7 @@
 		// However, this doesn't mean that elements of varying size can't be
 		// done with this data structure, bytePerElement just must be equal to
 		// sizeof(uint8_t).
-		size_t bytesPerElement, defaultCellCap;
+		size_t bytesPerElement, defaultCellCap, cellArrayCap;
 		PageCellArrayHeader *firstCellArray;
 
 		// NOTE: This is for appending memory, having the last page cell array
@@ -77,9 +76,8 @@
 
 	PageCell *PageCellArrayFirstCell(PageCellArrayHeader *);
 	PageCell *PageCellArrayLastCell(PageCellArrayHeader *);
-	PageCellArrayHeader *PageCellArrayNextCellArray(PageCellArrayHeader *);
 
-	PageLinkedList InitPageLinkedList(size_t, size_t);
+	PageLinkedList InitPageLinkedList(size_t);
 	void DeinitPageLinkedList(PageLinkedList *);
 
 	// NOTE: pageCap is in bytes.
@@ -106,12 +104,12 @@
 	// DeinitPageLinkedListIterator() isn't necessary.
 	PageLinkedListIterator InitPageLinkedListIterator(PageLinkedList *);
 
-	// NOTE: These *Next* functions will only reset their relevant cell
+	// NOTE: These ...Next... functions will only reset their relevant cell
 	// array/cell/element. Resetting any other relevant cell/element is the
 	// responsibility of the caller.
-	Bool PageLinkedListIteratorNextCellArray(PageIterator *, size_t);
-	Bool PageLinkedListIteratorNextCell(PageIterator *, size_t);
-	Bool PageLinkedListIteratorNext(PageIterator *, size_t);
+	Bool PageLinkedListIteratorNextCellArray(PageLinkedListIterator *, size_t);
+	Bool PageLinkedListIteratorNextCell(PageLinkedListIterator *, size_t);
+	Bool PageLinkedListIteratorNext(PageLinkedListIterator *, size_t);
 
 	size_t PageLinkedListGetTotalSize(PageLinkedList *);
 	PageCell PageLinkedListAsFlatMemory(PageLinkedList *);
@@ -125,17 +123,24 @@
 #ifdef PAGE_LINKED_LIST_IMPL
 	PageCell *PageCellArrayFirstCell(PageCellArrayHeader *arrayHeader) {
 
+		// NOTE: Can't do PageCellArrayHeader * -> PageCell *, I have to use
+		// void * as a man in the middle.
+		PageCell *arrayHeaderAsCell = (PageCell *)((void *)(arrayHeader));
+
 		// NOTE: Since the first cell in a page cell array is reserved for an
 		// array header, the next element will be used to hold actual page cells.
-		return &((PageCell *)(arrayHeader)[1]);
+		return &arrayHeaderAsCell[1];
 	}
 
 	PageCell *PageCellArrayLastCell(PageCellArrayHeader *arrayHeader) {
-		return &((PageCell *)(arrayHeader)[arrayHeader->amount - 1]);
-	}
 
-	PageCellArrayHeader *PageCellArrayNextCellArray(PageCellArrayHeader *arrayHeader) {
-		return (PageCellArrayHeader *)(arrayHeader->buffer);
+		// NOTE: Can't do PageCellArrayHeader * -> PageCell *, I have to use
+		// void * as a man in the middle.
+		PageCell *arrayHeaderAsCell = (PageCell *)((void *)(arrayHeader));
+
+		// NOTE: Since the array header is considered to be a part of the page
+		// cell array, I don't use arrayHeader->cellAmount by itself.
+		return &arrayHeaderAsCell[arrayHeader->cellAmount - 1];
 	}
 
 	PageLinkedList InitPageLinkedList(size_t bytesPerElement) {
@@ -151,12 +156,12 @@
 		PageCellArrayHeader *currentCellArray = linkedList->firstCellArray;
 		while(currentCellArray != NULL) {
 			PageCell *cells = PageCellArrayFirstCell(currentCellArray);
-			for(int i = 0; i < currentCellArray.amount; i++) {
+			for(int i = 0; i < currentCellArray->cellAmount; i++) {
 				PAGE_LINKED_LIST_DEINIT_PAGE(&cells[i].buffer);
 			}
 
 			PageCellArrayHeader *tempCellArray = currentCellArray;
-			currentCellArray = PageCellArrayNextCellArray(currentCellArray);
+			currentCellArray = currentCellArray->nextCellArray;
 			PAGE_LINKED_LIST_DEINIT_PAGE((uint8_t **)(&tempCellArray));
 		}
 	}
@@ -226,11 +231,11 @@
 		if(lastCell->amount + amountToAppend > lastCell->cap) {
 			PageCell *newCell = PageLinkedListAppendPage(linkedList);
 			if(newCell == NULL)  { return NULL; }
-			lastCell = PageCellArrayLastCell(newCell);
+			lastCell = newCell;
 		}
 
 		uint8_t *result = &lastCell->buffer[
-			linkedList->bytesPerElemnt * lastCell->amount
+			linkedList->bytesPerElement * lastCell->amount
 		];
 
 		lastCell->amount += amountToAppend;
@@ -252,15 +257,15 @@
 	}
 
 	Bool PageLinkedListIteratorNextCellArray(
-		PageIterator *iterator, size_t increaseAmount
+		PageLinkedListIterator *iterator, size_t increaseAmount
 	) {
 		for(
 			int i = 0;
 			iterator->currentCellArray != NULL && i < increaseAmount;
 			i++
 		) {
-			iterator->currentCellArray = PageCellArrayNextCellArray(
-				iterator->currentCellArray
+			iterator->currentCellArray = (
+				iterator->currentCellArray->nextCellArray
 			);
 		}
 
@@ -270,7 +275,7 @@
 	}
 
 	Bool PageLinkedListIteratorNextCell(
-		PageIterator *iterator, size_t increaseAmount
+		PageLinkedListIterator *iterator, size_t increaseAmount
 	) {
 		iterator->currentCellIndex += increaseAmount;
 
@@ -306,7 +311,7 @@
 	}
 
 	Bool PageLinkedListIteratorNext(
-		PageIterator *iterator, size_t increaseAmount
+		PageLinkedListIterator *iterator, size_t increaseAmount
 	) {
 		iterator->currentElementIndex += increaseAmount;
 		if(iterator->currentElementIndex >= iterator->currentCell->amount) {
@@ -380,11 +385,11 @@
 	uint8_t *PageLinkedListGetAtIndex(
 		PageLinkedList *linkedList, size_t index
 	) {
-		PageLinkedListIterator iterator = PageLinkedListIteratorInit(
+		PageLinkedListIterator iterator = InitPageLinkedListIterator(
 			linkedList
 		);
 
 		if(!PageLinkedListIteratorNext(&iterator, index)) { return NULL; }
-		return iterator->currentElement;
+		return iterator.currentElement;
 	}
 #endif

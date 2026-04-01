@@ -24,6 +24,9 @@
 	#include <stdint.h>
 	#include <wchar.h>
 
+	#define PAGE_LINKED_LIST_INIT_PAGE_FUNC InitPage
+	#define PAGE_LINKED_LIST_DEINIT_PAGE_FUNC DeinitPage
+	#define PAGE_LINKED_LIST_BYTES_IN_PAGE_FUNC BytesInPage
 	#include <page-linked-list.h>
 
 	// Misc. macros.
@@ -48,4 +51,9 @@
 	// MALLOC_JOIN(otherVariable, type) variable.
 	#define MALLOC(...) __VA_ARGS__
 	#define MALLOC_JOIN(joineeName, ...) __VA_ARGS__
+
+	//// Functions needed for page linked list.
+	uint8_t *InitPage(size_t);
+	void DeinitPage(uint8_t **);
+	size_t BytesInPage();
 #endif
