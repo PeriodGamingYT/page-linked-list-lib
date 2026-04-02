@@ -157,7 +157,10 @@
 		PageCellArrayHeader *currentCellArray = linkedList->firstCellArray;
 		while(currentCellArray != NULL) {
 			PageCell *cells = PageCellArrayFirstCell(currentCellArray);
-			for(int i = 0; i < currentCellArray->cellAmount; i++) {
+
+			// NOTE: Since the first page cell (The array header) was skipped,
+			// then the loop should go through one less than the amount.
+			for(int i = 0; i < currentCellArray->cellAmount - 1; i++) {
 				if(
 					cells[i].amount <= 0 || cells[i].cap <= 0 ||
 					cells[i].buffer == NULL
