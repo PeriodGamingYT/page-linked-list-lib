@@ -1,6 +1,8 @@
 #ifndef PAGE_LINKED_LIST_H
 #define PAGE_LINKED_LIST_H
 
+	// NOTE: This is version 1.
+	//
 	// NOTE: This single header library is based off of a Gist, whose URL is as
 	// follows:
 	// https://gist.github.com/PeriodGamingYT/75f921f7b66e05100ce1f35da6b51baf
