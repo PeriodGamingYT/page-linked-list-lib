@@ -10,7 +10,9 @@
 // free are intercepted when running with address sanitizer).
 #ifdef DEBUG_MODE
 	uint8_t *InitPage(size_t byteAmount) {
-		return (uint8_t *)(malloc(byteAmount));
+		uint8_t *result = (uint8_t *)(malloc(byteAmount));
+		memset(result, 0, byteAmount);
+		return result;
 	}
 
 	void DeinitPage(uint8_t **bufferPointer) {
