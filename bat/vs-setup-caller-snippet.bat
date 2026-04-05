@@ -21,6 +21,7 @@ REM Setup Visual Studio here, since doing it inside
 REM of the SETLOCAL/ENDLOCAL will guarantee that
 REM the environment variables that were set up
 REM will be guaranteed to be lost after ENDLOCAL
+SET StartPath=%CD%
 PUSHD %~dp0\..
 	IF "%VCINSTALLDIR%" == "" (
 		ECHO Visual Studio environment variables weren't detected, loading them now...
@@ -32,3 +33,4 @@ PUSHD %~dp0\..
 		)
 	)
 POPD
+cd %StartPath%

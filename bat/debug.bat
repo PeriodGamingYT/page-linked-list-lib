@@ -33,8 +33,8 @@ SET Debugger=%DefaultDebugger%
 SET IsInvalidCommandLine=0
 
 CLS
-SETLOCAL ENABLEDELAYEDEXPANSION
 SET StartPath=%CD%
+SETLOCAL ENABLEDELAYEDEXPANSION
 PUSHD %~dp0\..
 	FOR %%x IN (%*) DO (
 		IF "%%x" == "no-compile" (

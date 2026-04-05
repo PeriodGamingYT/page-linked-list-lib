@@ -22,8 +22,12 @@ PUSHD %~dp0\..
 POPD
 
 REM Default parameters
-SET DebugCompilerFlags=/Zi /MTd /D DEBUG_MODE /DEBUG /fsanitize=address
+
+REM Address sanitizer isn't used here since it gets hung up on not being able
+REM to scan kernel32.lib and ntdll.lib
+SET DebugCompilerFlags=/Zi /MTd /D DEBUG_MODE /DEBUG
 SET ReleaseCompilerFlags=/O2
+SET ShouldMakeAssetsFolder=0
 
 SET DefaultUseDebug=1
 
@@ -35,8 +39,8 @@ REM Batch files and for extra build options in the future
 SET IsInvalidCommandLine=0
 
 CLS
-SETLOCAL ENABLEDELAYEDEXPANSION
 SET StartPath=%CD%
+SETLOCAL ENABLEDELAYEDEXPANSION
 PUSHD %~dp0\..
 	FOR %%x IN (%*) DO (
 		IF "%%x" == "debug" (
@@ -80,7 +84,7 @@ PUSHD %~dp0\..
 			/I..\include ^
 				!CompilerFlags! ^
 				%FilesToCompile% ^
-			/link /OUT:main.exe /SUBSYSTEM:CONSOLE
+			/link /OUT:main.exe
 
 		IF %ERRORLEVEL% NEQ 0 (
 			ECHO Compiling failed, shutting down with error...
@@ -98,8 +102,11 @@ PUSHD %~dp0\..
 		MKDIR result
 		PUSHD result
 			COPY ..\main.exe .
-			MKDIR assets
-			XCOPY ..\..\assets .
+
+			IF "%ShouldMakeAssetsFolder%" == "1" (
+				MKDIR assets
+				XCOPY ..\..\assets .
+			)
 		POPD
 	POPD
 POPD

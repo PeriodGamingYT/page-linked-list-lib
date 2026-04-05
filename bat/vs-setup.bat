@@ -47,8 +47,8 @@ SET VisualStudioArch=%DefaultVisualStudioArch%
 SET IsInvalidCommandLine=0
 
 CLS
-SETLOCAL ENABLEDELAYEDEXPANSION
 SET StartPath=%CD%
+SETLOCAL ENABLEDELAYEDEXPANSION
 PUSHD %~dp0\..
 	FOR %%x IN (%*) DO (
 		IF "!IsVersionYearUpcoming!" == "1" (
