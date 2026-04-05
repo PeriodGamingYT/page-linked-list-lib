@@ -59,12 +59,24 @@ int main() {
 	}
 
 	PageLinkedListIterator iterator = InitPageLinkedListIterator(&linkedList);
-	do {
+	while(PageLinkedListIteratorNext(&iterator, 1)) {
 
 		// NOTE: This is commented out because printing all these out takes a
-		// fair bit of time.
-		// fprintf(stderr, "%d\n", *(int *)(iterator.currentElement));
-	} while(PageLinkedListIteratorNext(&iterator, 1));
+		// fair bit of time, printing is slow (Thanks to Microslop!, see
+		// refterm).
+		// printf("%d\n", *(int *)(iterator.currentElement));
+	}
+
+	for(int i = 0; /* ... */; i += 1000) {
+		int *result = (int *)(PageLinkedListGetAtIndex(&linkedList, i));
+		if(result == NULL) { break; }
+		printf("%d\n", *result);
+	}
+
+	printf(
+		"The page linked list is %zd elements long\n",
+		PageLinkedListGetTotalSize(&linkedList)
+	);
 
 	DeinitPageLinkedList(&linkedList);
 

@@ -14,6 +14,8 @@
 	#include <shlobj.h>
 	#include <shobjidl.h>
 
+	#include <intrin.h>
+
 	#pragma comment(lib, "user32.lib")
 	#pragma comment(lib, "gdi32.lib")
 	#pragma comment(lib, "shell32.lib")
@@ -34,7 +36,7 @@
 		(sizeof(_array) / sizeof((_array)[0]))
 
 	#ifdef DEBUG_MODE
-		#define DEBUG_CRASH(...) (*(uint8_t *)(0) = 0)
+		#define DEBUG_CRASH(...) __debugbreak()
 	#else
 		#define DEBUG_CRASH(...) OutputDebugStringA("DEBUG_CRASH at " __FILE__)
 	#endif

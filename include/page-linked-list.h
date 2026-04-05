@@ -1,14 +1,13 @@
 #ifndef PAGE_LINKED_LIST_H
 #define PAGE_LINKED_LIST_H
+	#define PAGE_LINKED_LIST_VERSION 2
 
-	// NOTE: This is version 1.
-	//
 	// NOTE: This single header library is based off of a Gist, whose URL is as
 	// follows:
 	// https://gist.github.com/PeriodGamingYT/75f921f7b66e05100ce1f35da6b51baf
 
 	//// Guard clauses to ensure user has given all appropriate information
-	// needed for library to operate.
+	//// needed for library to operate.
 	#ifndef PAGE_LINKED_LIST_INIT_PAGE_FUNC
 		#error "PAGE_LINKED_LIST_INIT_PAGE_FUNC isn't defined:"
 		#error "Give a method that conforms to uint8_t *funcName(size_t) that will allocate zeroed memory, preferably as a memory page."
@@ -279,20 +278,22 @@
 	PageLinkedListIterator InitPageLinkedListIterator(
 		PageLinkedList *linkedList
 	) {
-		PageLinkedListIterator result = {
-			.linkedList = linkedList,
-
-			.currentCellArray = linkedList->firstCellArray
-		};
-
-		result.currentCell = PageCellArrayFirstCell(result.currentCellArray);
-		result.currentElement = &result.currentCell->buffer[0];
-		return result;
+		return (PageLinkedListIterator) { .linkedList = linkedList };
 	}
 
 	Bool PageLinkedListIteratorNextCellArray(
 		PageLinkedListIterator *iterator, size_t increaseAmount
 	) {
+		if(
+			increaseAmount == 0 ||
+			iterator->linkedList->firstCellArray == NULL
+		) { return FALSE; }
+
+		if(iterator->currentCellArray == NULL) {
+			iterator->currentCellArray = iterator->linkedList->firstCellArray;
+			increaseAmount--;
+		}
+
 		for(
 			int i = 0;
 			iterator->currentCellArray != NULL && i < increaseAmount;
@@ -311,22 +312,41 @@
 	Bool PageLinkedListIteratorNextCell(
 		PageLinkedListIterator *iterator, size_t increaseAmount
 	) {
+		if(increaseAmount == 0) { return FALSE; }
+		if(iterator->currentCell == NULL) {
+			if(
+				iterator->currentCellArray == NULL &&
+				!PageLinkedListIteratorNextCellArray(iterator, 1)
+			) { return FALSE; }
+
+			iterator->currentCell = PageCellArrayFirstCell(
+				iterator->currentCellArray
+			);
+
+			increaseAmount--;
+		}
+
 		iterator->currentCellIndex += increaseAmount;
 
+		// NOTE: Since the current cell index starts at the first cell and
+		// amount accounts the first cell array (for consistency with
+		// PageCell, since they are two sides of the same coin), subtracting
+		// by two is the only solution I could come up with that would keep
+		// this consistency.
 		if(
-			iterator->currentCellIndex >=
-			iterator->currentCellArray->cellAmount - 1
+			iterator->currentCellIndex >
+			iterator->currentCellArray->cellAmount - 2
 		) {
 
 			// NOTE: This is a while loop that goes through the cells one by
 			// one since assumptions about each individual page cell amount
 			// can't be made without creating bugs.
 			while(
-				iterator->currentCellIndex >=
-				iterator->currentCellArray->cellAmount - 1
+				iterator->currentCellIndex >
+				iterator->currentCellArray->cellAmount - 2
 			) {
 				iterator->currentCellIndex -= (
-					iterator->currentCellArray->cellAmount
+					iterator->currentCellArray->cellAmount - 1
 				);
 
 				if(!PageLinkedListIteratorNextCellArray(iterator, 1)) {
@@ -349,9 +369,20 @@
 	Bool PageLinkedListIteratorNext(
 		PageLinkedListIterator *iterator, size_t increaseAmount
 	) {
+		if(increaseAmount == 0) { return FALSE; }
+		if(iterator->currentElement == NULL) {
+			if(
+				iterator->currentCell == NULL &&
+				!PageLinkedListIteratorNextCell(iterator, 1)
+			) { return FALSE; }
+
+			increaseAmount--;
+		}
+
 		iterator->currentElementIndex += increaseAmount;
+
 		if(
-			iterator->currentElementIndex >=
+			iterator->currentElementIndex >
 			iterator->currentCell->amount - 1
 		) {
 
@@ -359,7 +390,7 @@
 			// one by one since assumptions about each individual page cell
 			// amount can't me made without creating bugs.
 			while(
-				iterator->currentElementIndex >=
+				iterator->currentElementIndex >
 				iterator->currentCell->amount - 1
 			) {
 				iterator->currentElementIndex -= iterator->currentCell->amount;
@@ -383,9 +414,9 @@
 			linkedList
 		);
 
-		do {
+		while(PageLinkedListIteratorNextCell(&iterator, 1)) {
 			result += iterator.currentCell->amount;
-		} while(PageLinkedListIteratorNextCell(&iterator, 1));
+		}
 
 		return result;
 	}
@@ -402,7 +433,7 @@
 			linkedList
 		);
 
-		do {
+		while(PageLinkedListIteratorNextCell(&iterator, 1)) {
 			size_t byteAmount = (
 				linkedList->bytesPerElement *
 				iterator.currentCell->amount
@@ -415,7 +446,7 @@
 			);
 
 			currentIndex += byteAmount;
-		} while(PageLinkedListIteratorNextCell(&iterator, 1));
+		}
 
 		return result;
 	}
@@ -427,7 +458,11 @@
 			linkedList
 		);
 
-		if(!PageLinkedListIteratorNext(&iterator, index)) { return NULL; }
+		// NOTE: Since PageLinkedListIterator can be initalized with a yet
+		// to be initalized PageLinkedList. Calling PageLinkedListNext*()
+		// will initalize its corresponding iteration index and element/cell/
+		// cell array and decrease the amount to iterate by 1.
+		if(!PageLinkedListIteratorNext(&iterator, index + 1)) { return NULL; }
 		return iterator.currentElement;
 	}
 #endif
