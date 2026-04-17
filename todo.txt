@@ -1,3 +1,5 @@
-- At the most fundemental level, PageLinkedList needs to have evenly sized
-elements, however, having elements of varying size needs to be supported
-through another struct, name of said struct yet to be determined.
+- Instead of having *WithSize() functions with only InitPage*WithSize() and
+having a boolean for whether or not the PageLinkedList contains
+CustomSizeElements.
+
+- Implement PageLinkedListPop() and PageLinkedListPopWithSize().

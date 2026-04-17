@@ -53,32 +53,84 @@ int main() {
 
 	// NOTE: This is meant to demonstrate the usage of PageLinkedList and also
 	// act as a test suite.
-	PageLinkedList linkedList = InitPageLinkedList(sizeof(int));
-	for(int i = 0; i < 200000; i++) {
-		*(int *)(PageLinkedListAppend(&linkedList, 1)) = i;
-	}
+	PageLinkedList linkedList = InitPageLinkedList(sizeof(int)); {
+		for(int i = 0; i < 200000; i++) {
+			*(int *)(PageLinkedListAppend(&linkedList, 1)) = i;
+		}
 
-	PageLinkedListIterator iterator = InitPageLinkedListIterator(&linkedList);
-	while(PageLinkedListIteratorNext(&iterator, 1)) {
+		PageLinkedListIterator iterator = InitPageLinkedListIterator(
+			&linkedList
+		);
 
-		// NOTE: This is commented out because printing all these out takes a
-		// fair bit of time, printing is slow (Thanks to Microslop!, see
-		// refterm).
-		// printf("%d\n", *(int *)(iterator.currentElement));
-	}
+		while(PageLinkedListIteratorNext(&iterator, 1)) {
 
-	for(int i = 0; /* ... */; i += 1000) {
-		int *result = (int *)(PageLinkedListGetAtIndex(&linkedList, i));
-		if(result == NULL) { break; }
-		printf("%d\n", *result);
-	}
+			// NOTE: This is commented out because printing all these out takes
+			// a fair bit of time, printing is slow (Thanks to Microslop!, see
+			// refterm).
+			// printf("%d\n", *(int *)(iterator.currentElement));
+		}
 
-	printf(
-		"The page linked list is %zd elements long\n",
-		PageLinkedListGetTotalSize(&linkedList)
-	);
+		for(int i = 0; /* ... */; i += 1000) {
+			int *result = (int *)(PageLinkedListGetAtIndex(&linkedList, i));
+			if(result == NULL) { break; }
 
-	DeinitPageLinkedList(&linkedList);
+			// NOTE: This print statement won't necessarily slow the program
+			// down, but it can clog up the terminal output buffer. As such,
+			// it is commented out by default.
+			// printf("%d\n", *result);
+		}
+
+		printf(
+			"The page linked list is %zd elements long\n",
+			PageLinkedListGetTotalSize(&linkedList)
+		);
+	} DeinitPageLinkedList(&linkedList);
+
+	// NOTE: This is a test suite testing CustomSizeElement.
+	linkedList = InitPageLinkedList(sizeof(uint8_t)); {
+		for(int i = 0; i < 200000; i++) {
+
+			// NOTE: Since an element can have a maximum capacity of 255 bytes
+			// since the CustomSizeElement's byteAmount is in uint8_t, testing
+			// should test elements up to 255 bytes big.
+			size_t bytesAmount = (i % 255) + 1;
+			CustomSizeElement *element = PageLinkedListAppendWithSize(
+				&linkedList, bytesAmount
+			);
+
+			for(int writeIndex = 0; writeIndex < bytesAmount; writeIndex++) {
+				element->buffer[writeIndex] = writeIndex + 1;
+			}
+		}
+
+		PageLinkedListIterator iterator = InitPageLinkedListIterator(
+			&linkedList
+		);
+
+		while(PageLinkedListIteratorNextWithSize(&iterator, 1)) {
+			CustomSizeElement *element = (CustomSizeElement *)(
+				iterator.currentElement
+			);
+
+			// NOTE: This is commented out because printing all these out takes
+			// a fair bit of time, printing is slow (Thanks to Microslop!, see
+			// refterm).
+			// printf("%d\n", element->buffer[element->bytesAmount - 1]);
+		}
+
+		for(int i = 0; /* ... */; i += 1000) {
+			CustomSizeElement *element = PageLinkedListGetAtIndexWithSize(
+				&linkedList, i
+			);
+
+			if(element == NULL) { break; }
+
+			// NOTE: This print statement won't necessarily slow the program
+			// down, but it can clog up the terminal output buffer. As such,
+			// it is commented out by default.
+			printf("%d\n", element->buffer[element->bytesAmount - 1]);
+		}
+	} DeinitPageLinkedList(&linkedList);
 
 	printf("Press any key to exit this program's console\n");
 	getchar();
