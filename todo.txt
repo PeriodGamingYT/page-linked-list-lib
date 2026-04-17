@@ -1,3 +1,3 @@
 - At the most fundemental level, PageLinkedList needs to have evenly sized
 elements, however, having elements of varying size needs to be supported
-through another struct, yet to be determined.
+through another struct, name of said struct yet to be determined.
