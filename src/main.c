@@ -128,7 +128,7 @@ int main() {
 			// NOTE: This print statement won't necessarily slow the program
 			// down, but it can clog up the terminal output buffer. As such,
 			// it is commented out by default.
-			printf("%d\n", element->buffer[element->bytesAmount - 1]);
+			// printf("%d\n", element->buffer[element->bytesAmount - 1]);
 		}
 	} DeinitPageLinkedList(&linkedList);
 
