@@ -1,7 +1,7 @@
 #ifndef PAGE_LINKED_LIST_H
 #define PAGE_LINKED_LIST_H
-	#define PAGE_LINKED_LIST_VERSION 3
-	#define PAGE_LINKED_LIST_IS_RELEASE 1
+	#define PAGE_LINKED_LIST_VERSION 4
+	#define PAGE_LINKED_LIST_IS_RELEASE 0
 
 	// NOTE: This single header library is based off of a Gist, whose URL is as
 	// follows:
@@ -100,6 +100,15 @@
 		// CustomSizeElement.
 		uint8_t buffer[1];
 	} CustomSizeElement;
+
+	// NOTE: If you want to use something akin to CustomSizeElement but have
+	// no CustomSizeElement to actually point to, you can use this.
+	typedef struct CustomSizeElementRefStruct {
+		size_t bytesAmount;
+		uint8_t *buffer;
+	} CustomSizeElementRef;
+
+	CustomSizeElementRef RefCustomSizeElement(CustomSizeElement *);
 
 	// NOTE: This only will run if PageLinkedList.bytesPerElement == sizeof(
 	// uint8_t).
@@ -304,6 +313,15 @@
 		lastCell->amount += amountToAppend;
 		return result;
 	}
+
+
+	CustomSizeElementRef RefCustomSizeElement(CustomSizeElement *element) {
+		return (CustomSizeElementRef) {
+			.bytesAmount = element->bytesAmount,
+			.buffer = &element->buffer[0]
+		};
+	}
+
 
 	CustomSizeElement *PageLinkedListAppendWithSize(
 		PageLinkedList *linkedList, size_t bufferBytesAmount
