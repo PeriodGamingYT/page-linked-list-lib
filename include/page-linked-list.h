@@ -1,7 +1,7 @@
 #ifndef PAGE_LINKED_LIST_H
 #define PAGE_LINKED_LIST_H
 	#define PAGE_LINKED_LIST_VERSION 4
-	#define PAGE_LINKED_LIST_IS_RELEASE 0
+	#define PAGE_LINKED_LIST_IS_RELEASE 1
 
 	// NOTE: This single header library is based off of a Gist, whose URL is as
 	// follows:
@@ -75,7 +75,7 @@
 
 		// NOTE: This is meant to store the previous size of the last
 		// CustomSizeElement for PageLinkedListAppendWithSize().
-		size_t prevBytesAmount;
+		size_t prevByteAmount;
 	} PageLinkedList;
 
 	PageCell *PageCellArrayFirstCell(PageCellArrayHeader *);
@@ -91,9 +91,9 @@
 
 	typedef struct CustomSizeElementStruct {
 
-		// NOTE: prevBytesAmount makes it possible to pop things off of the
+		// NOTE: prevByteAmount makes it possible to pop things off of the
 		// stack of CustomSizeElements.
-		uint8_t bytesAmount, prevBytesAmount;
+		uint8_t byteAmount, prevByteAmount;
 
 		// NOTE: Since the custom size elements shouldn't be seperated, the
 		// buffer isn't a pointer, but instead it's attached to the end of a
@@ -104,11 +104,21 @@
 	// NOTE: If you want to use something akin to CustomSizeElement but have
 	// no CustomSizeElement to actually point to, you can use this.
 	typedef struct CustomSizeElementRefStruct {
-		size_t bytesAmount;
+		size_t byteAmount;
 		uint8_t *buffer;
 	} CustomSizeElementRef;
 
-	CustomSizeElementRef RefCustomSizeElement(CustomSizeElement *);
+	// NOTE: These function's buffer pointers point back to their arguments.
+	// As such, ensure that they are readily available to whatever relevant
+	// functions will use them.
+	//
+	// REMARK: Break consistency with CustomSizeElement as the name would be
+	// ridiculously long otherwise.
+	CustomSizeElementRef CustomSizeElementIntoRef(
+		CustomSizeElement *
+	);
+
+	CustomSizeElementRef CustomSizeElementRefFromCString(uint8_t *);
 
 	// NOTE: This only will run if PageLinkedList.bytesPerElement == sizeof(
 	// uint8_t).
@@ -315,16 +325,25 @@
 	}
 
 
-	CustomSizeElementRef RefCustomSizeElement(CustomSizeElement *element) {
+	CustomSizeElementRef CustomSizeElementIntoRef(CustomSizeElement *element) {
 		return (CustomSizeElementRef) {
-			.bytesAmount = element->bytesAmount,
+			.byteAmount = element->byteAmount,
 			.buffer = &element->buffer[0]
+		};
+	}
+
+	CustomSizeElementRef CustomSizeElementRefFromCString(uint8_t *string) {
+		int stringCharAmount = 0;
+		for(; string[stringCharAmount] != 0; stringCharAmount++);
+		return (CustomSizeElementRef) {
+			.byteAmount = stringCharAmount * sizeof(uint8_t),
+			.buffer = &string[0]
 		};
 	}
 
 
 	CustomSizeElement *PageLinkedListAppendWithSize(
-		PageLinkedList *linkedList, size_t bufferBytesAmount
+		PageLinkedList *linkedList, size_t bufferByteAmount
 	) {
 
 		// NOTE: 1 is subtracted because CustomSizeElement's buffer is only
@@ -332,20 +351,20 @@
 		// without the use of a helper function or pointer property. But since
 		// buffer is an actual property in CustomSizeElement, it's still
 		// counted towards sizeof(CustomSizeElement). Thus, when calculating
-		// the true size of bytesAmount, this discrepancy must be accounted
+		// the true size of byteAmount, this discrepancy must be accounted
 		// for.
-		size_t bytesAmount = sizeof(CustomSizeElement) + bufferBytesAmount - 1;
+		size_t byteAmount = sizeof(CustomSizeElement) + bufferByteAmount - 1;
 		CustomSizeElement *result = (CustomSizeElement *)(PageLinkedListAppend(
-			linkedList, bytesAmount
+			linkedList, byteAmount
 		));
 
 		if(result == NULL) { return NULL; }
 		*result = (CustomSizeElement) {
-			.bytesAmount = bufferBytesAmount,
-			.prevBytesAmount = linkedList->prevBytesAmount
+			.byteAmount = bufferByteAmount,
+			.prevByteAmount = linkedList->prevByteAmount
 		};
 
-		linkedList->prevBytesAmount = bufferBytesAmount;
+		linkedList->prevByteAmount = bufferByteAmount;
 
 		return result;
 	}
@@ -499,7 +518,7 @@
 
 			if(!PageLinkedListIteratorNext(
 				iterator,
-				sizeof(CustomSizeElement) + element->bytesAmount - 1
+				sizeof(CustomSizeElement) + element->byteAmount - 1
 			)) { return FALSE; }
 		}
 

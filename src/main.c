@@ -81,7 +81,7 @@ int main() {
 		}
 
 		printf(
-			"The page linked list is %zd elements long\n",
+			"The page linked list is %zd elements long\n\n",
 			PageLinkedListGetTotalSize(&linkedList)
 		);
 	} DeinitPageLinkedList(&linkedList);
@@ -130,9 +130,34 @@ int main() {
 			// it is commented out by default.
 			// printf("%d\n", element->buffer[element->bytesAmount - 1]);
 		}
+
+		CustomSizeElementRef testRef = CustomSizeElementIntoRef(
+			PageLinkedListGetAtIndexWithSize(&linkedList, 42)
+		);
+
+		printf(
+			"Test reference from a custom size element is:\n"
+			"%zd bytes long and whose last number is %d\n\n",
+			testRef.byteAmount, testRef.buffer[testRef.byteAmount - 1]
+		);
 	} DeinitPageLinkedList(&linkedList);
 
-	printf("Press any key to exit this program's console\n");
+	{
+		uint8_t *testString = "Hello, world!";
+		CustomSizeElementRef testRef = CustomSizeElementRefFromCString(
+			&testString[0]
+		);
+
+		printf(
+			"String \"%*s\" is %zd bytes long\n",
+
+			// REMARK: cl demands an int for whatever reason, whatever I guess.
+			(int)(testRef.byteAmount), testRef.buffer,
+			testRef.byteAmount
+		);
+	}
+
+	printf("\nPress any key to exit this program's console\n");
 	getchar();
 	return 0;
 }
