@@ -55,14 +55,14 @@ int main() {
 	// act as a test suite.
 	PageLinkedList linkedList = InitPageLinkedList(sizeof(int)); {
 		for(int i = 0; i < 200000; i++) {
-			*(int *)(PageLinkedListAppend(&linkedList, 1)) = i;
+			*(int *)(AddToPageLinkedList(&linkedList, 1)) = i;
 		}
 
 		PageLinkedListIterator iterator = InitPageLinkedListIterator(
 			&linkedList
 		);
 
-		while(PageLinkedListIteratorNext(&iterator, 1)) {
+		while(IterateNextInPageLinkedList(&iterator, 1)) {
 
 			// NOTE: This is commented out because printing all these out takes
 			// a fair bit of time, printing is slow (Thanks to Microslop!, see
@@ -71,7 +71,10 @@ int main() {
 		}
 
 		for(int i = 0; /* ... */; i += 1000) {
-			int *result = (int *)(PageLinkedListGetAtIndex(&linkedList, i));
+			int *result = (int *)(GetFromIndexForPageLinkedList(
+				&linkedList, i
+			));
+
 			if(result == NULL) { break; }
 
 			// NOTE: This print statement won't necessarily slow the program
@@ -86,15 +89,15 @@ int main() {
 		);
 	} DeinitPageLinkedList(&linkedList);
 
-	// NOTE: This is a test suite testing CustomSizeElement.
+	// NOTE: This is a test suite testing Slice.
 	linkedList = InitPageLinkedList(sizeof(uint8_t)); {
 		for(int i = 0; i < 200000; i++) {
 
 			// NOTE: Since an element can have a maximum capacity of 255 bytes
-			// since the CustomSizeElement's byteAmount is in uint8_t, testing
+			// since the Slice's byteAmount is in uint8_t, testing
 			// should test elements up to 255 bytes big.
 			size_t bytesAmount = (i % 255) + 1;
-			CustomSizeElement *element = PageLinkedListAppendWithSize(
+			Slice *element = AddSliceToPageLinkedList(
 				&linkedList, bytesAmount
 			);
 
@@ -107,8 +110,8 @@ int main() {
 			&linkedList
 		);
 
-		while(PageLinkedListIteratorNextWithSize(&iterator, 1)) {
-			CustomSizeElement *element = (CustomSizeElement *)(
+		while(IterateNextSliceInPageLinkedList(&iterator, 1)) {
+			Slice *element = (Slice *)(
 				iterator.currentElement
 			);
 
@@ -119,7 +122,7 @@ int main() {
 		}
 
 		for(int i = 0; /* ... */; i += 1000) {
-			CustomSizeElement *element = PageLinkedListGetAtIndexWithSize(
+			Slice *element = GetSliceFromIndexForPageLinkedList(
 				&linkedList, i
 			);
 
@@ -131,8 +134,8 @@ int main() {
 			// printf("%d\n", element->buffer[element->bytesAmount - 1]);
 		}
 
-		CustomSizeElementRef testRef = CustomSizeElementIntoRef(
-			PageLinkedListGetAtIndexWithSize(&linkedList, 42)
+		SliceRef testRef = SliceIntoRef(
+			GetSliceFromIndexForPageLinkedList(&linkedList, 42)
 		);
 
 		printf(
@@ -144,10 +147,7 @@ int main() {
 
 	{
 		uint8_t *testString = "Hello, world!";
-		CustomSizeElementRef testRef = CustomSizeElementRefFromCString(
-			&testString[0]
-		);
-
+		SliceRef testRef = SliceRefFromCString(&testString[0]);
 		printf(
 			"String \"%*s\" is %zd bytes long\n",
 
