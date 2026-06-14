@@ -15,22 +15,25 @@ REM You should have received a copy of the GNU General Public License along
 REM with this program; if not, write to the Free Software Foundation, Inc.,
 REM 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-@ECHO OFF
-
 REM Setup Visual Studio here, since doing it inside
 REM of the SETLOCAL/ENDLOCAL will guarantee that
 REM the environment variables that were set up
 REM will be guaranteed to be lost after ENDLOCAL
-SET StartPath=%CD%
-PUSHD %~dp0\..
-	IF "%VCINSTALLDIR%" == "" (
-		ECHO Visual Studio environment variables weren't detected, loading them now...
-		CALL bat\vs-setup.bat
 
-		IF "%VCINSTALLDIR%" == "" (
-			ECHO Visual Studio failed to setup, shutting down with error...
+CLS
+SET StartPath=%CD%
+SET RootPath=%~dp0.\..
+	WHERE /Q CL
+	IF %ERRORLEVEL% NEQ 0 (
+		ECHO Visual Studio environment variables weren't detected, loading them now...
+		CALL "%RootPath%\bat\vs-setup.bat"
+
+		WHERE /Q CL
+		IF %ERRORLEVEL% NEQ 0 (
+			ECHO Visual Studio failed to setup, exiting with error...
+
+			CD "%StartPath%"
 			EXIT /B 1
 		)
 	)
-POPD
-cd %StartPath%
+CD %StartPath%

@@ -16,47 +16,60 @@ REM with this program; if not, write to the Free Software Foundation, Inc.,
 REM 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 @ECHO OFF
-
-PUSHD %~dp0\..
-	CALL bat\vs-setup-caller-snippet.bat
-POPD
-
-REM Default parameters
-REM ...
-
-REM Flag parameters
-SET NoCompile=0
-
 CLS
 SET StartPath=%CD%
+SET RootPath=%~dp0.\..
+CALL "%RootPath%\bat\vs-setup-caller-snippet.bat"
 SETLOCAL ENABLEDELAYEDEXPANSION
-PUSHD %~dp0\..
+
+	REM Default parameters
+	SET DefaultNoCompile=0
+
+	REM Flag parameters
+	SET DoCompile=!DefaultNoCompile!
+
+	SET OtherArgs=
+	SET IsOption=0
 	FOR %%x IN (%*) DO (
+		IF "%%x" == "compile" (
+			SET DoCompile=1
+			SET IsOption=1
+		)
+
 		IF "%%x" == "no-compile" (
-			SET NoCompile=1
+			SET DoCompile=0
+			SET IsOption=1
 		)
 
 		IF "%%x" == "help" (
-			ECHO run[.bat] [no-compile]
+			ECHO run[.bat] [compile, no-compile]
+
+			CD "!StartPath!"
 			ENDLOCAL
-			CD %StartPath%
 			EXIT /B 0
 		)
+
+		IF "!IsOption!" == "0" (
+			SET OtherArgs=!OtherArgs! %%x
+		)
+
+		SET IsOption=0
 	)
 
-	IF "!NoCompile!" == "0" (
-		CALL bat\build.bat
+	IF "!DoCompile!" == "1" (
+		CALL "!RootPath!\bat\build.bat" !OtherArgs!
 	)
 
 	IF %ERRORLEVEL% NEQ 0 (
-		ECHO build.bat failed, shutting down with error...
-		CD %StartPath%
+		ECHO build.bat failed, exiting with error...
+
+		CD "!StartPath!"
 		ENDLOCAL
 		EXIT /B 1
 	)
 
-	IF EXIST obj\result\main.exe (
-		START obj\result\main.exe
+	IF EXIST "!RootPath!\obj\result\main.exe" (
+		START "" "!RootPath!\obj\result\main.exe"
 	)
-POPD
+CD "!StartPath!"
 ENDLOCAL
