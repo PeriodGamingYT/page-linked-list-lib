@@ -1,7 +1,7 @@
 #ifndef PAGE_LINKED_LIST_H
 #define PAGE_LINKED_LIST_H
 	#define PAGE_LINKED_LIST_VERSION 5
-	#define PAGE_LINKED_LIST_IS_RELEASE 1
+	#define PAGE_LINKED_LIST_IS_RELEASE 0
 
 	// NOTE: This single header library is based off of a Gist, whose URL is as
 	// follows:
@@ -265,6 +265,10 @@
 	}
 
 	static PageCell InitPageCell(size_t pageCap, size_t bytesPerElement) {
+		if(pageCap == USE_DEFAULT_CAP) {
+			pageCap = PAGE_LINKED_LIST_BYTES_IN_PAGE_AMOUNT();
+		}
+
 		uint8_t *buffer = PAGE_LINKED_LIST_INIT_PAGE(
 			pageCap * bytesPerElement
 		);
