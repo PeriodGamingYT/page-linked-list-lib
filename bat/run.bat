@@ -1,4 +1,5 @@
-REM source-treks, grok and jump through C source code easily
+REM page-linked-list-lib, custom LIFO allocator with support for variable size
+REM elements that works off of the operating systems memory page allocator.
 REM Copyright (C) 2025  Nathan Phillips
 
 REM This program is free software; you can redistribute it and/or modify
@@ -23,10 +24,10 @@ CALL "%RootPath%\bat\vs-setup-caller-snippet.bat"
 SETLOCAL ENABLEDELAYEDEXPANSION
 
 	REM Default parameters
-	SET DefaultNoCompile=0
+	SET DefaultDoCompile=1
 
 	REM Flag parameters
-	SET DoCompile=!DefaultNoCompile!
+	SET DoCompile=!DefaultDoCompile!
 
 	SET OtherArgs=
 	SET IsOption=0
