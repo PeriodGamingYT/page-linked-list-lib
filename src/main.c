@@ -71,7 +71,7 @@ int main() {
 		}
 
 		for(int i = 0; /* ... */; i += 1000) {
-			int *result = (int *)(GetFromIndexForPageLinkedList(
+			int *result = (int *)(GetViaIndexForPageLinkedList(
 				&linkedList, i
 			));
 
@@ -85,7 +85,7 @@ int main() {
 
 		printf(
 			"The page linked list is %zd elements long\n\n",
-			PageLinkedListGetTotalSize(&linkedList)
+			GetTotalSizeForPageLinkedList(&linkedList)
 		);
 	} DeinitPageLinkedList(&linkedList);
 
