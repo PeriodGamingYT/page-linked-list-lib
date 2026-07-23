@@ -96,13 +96,13 @@ int main() {
 			// NOTE: Since an element can have a maximum capacity of 255 bytes
 			// since the Slice's byteAmount is in uint8_t, testing
 			// should test elements up to 255 bytes big.
-			size_t bytesAmount = (i % 255) + 1;
+			size_t bytesAmount = (i % 256) + 1;
 			Slice *element = AddSliceToPageLinkedList(
 				&linkedList, bytesAmount
 			);
 
 			for(int writeIndex = 0; writeIndex < bytesAmount; writeIndex++) {
-				element->buffer[writeIndex] = writeIndex + 1;
+				element->buffer[writeIndex] = writeIndex;
 			}
 		}
 
@@ -141,7 +141,14 @@ int main() {
 		printf(
 			"Test reference from a custom size element is:\n"
 			"%zd bytes long and whose last number is %d\n\n",
-			testRef.byteAmount, testRef.buffer[testRef.byteAmount - 1]
+			testRef.byteAmount,
+			testRef.buffer[
+
+				// NOTE: Since Slice.byteAmount encompasses the whole of the
+				// slice, including sturct properties brought in by Slice,
+				// need to be accounted for.
+				testRef.byteAmount - 1 - sizeof(Slice)
+			]
 		);
 	} DeinitPageLinkedList(&linkedList);
 
