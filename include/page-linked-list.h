@@ -94,6 +94,37 @@
 	PageCell *AddPageToPageLinkedList(PageLinkedList *);
 	uint8_t *AddToPageLinkedList(PageLinkedList *, size_t);
 
+	// NOTE: A convention for Slice/SliceRef is that byteAmount will exclude
+	// byteAmount and prevByteAmount.
+	//
+	// NOTE: If you are making an extension to a Slice, then make your struct
+	// first as:
+	// typedef struct YourStruct { union {
+	// 	Slice slice;
+	// 	struct {
+	// 		uint8_t byteAmount, prevByteAmount;
+	// 		// Other properties go here.
+	// 	};
+	// }; } MyStruct;
+	//
+	// After this, for allocation purposes, make this function:
+	// // NOTE: sizeof(MyStruct) + ... - sizeof(Slice) isn't needed, and also
+	// // won't work for tagged unions that vary in size. If this is the case,
+	// // forgo using the above and just compute the size of your struct
+	// // excluding the Slice manually.
+	// size_t ByteAmountForMyStruct() {
+	// 	return sizeof(MyStruct) + /* FAM stuff, if any. */ - sizeof(Slice);
+	// }
+	//
+	// If you are going to make any functions that get the size of your FAM,
+	// then make sure to subtract sizeof(Slice) to isolate the byte amount of
+	// just your struct as well as any other things you need to subtract
+	// and isolate against.
+	//
+	// NOTE: Just to clarify, byteAmount (and by extension, prevByteAmount)
+	// encompass *ALL* of the bytes in a slice, not just the user data in a
+	// slice, meaning byteAmount and prevByteAmount are counted towards the
+	// total byte amount in byteAmount.
 	typedef struct Slice {
 
 		// NOTE: prevByteAmount makes it possible to pop things off of the
@@ -162,10 +193,10 @@
 	// sizeof(uint8_t).
 	Bool IterateNextSliceInPageLinkedList(PageLinkedListIterator *, size_t);
 
-	size_t PageLinkedListGetTotalSize(PageLinkedList *);
+	size_t GetTotalSizeForPageLinkedList(PageLinkedList *);
 	PageCell PageLinkedListToPageCell(PageLinkedList *);
 
-	uint8_t *GetFromIndexForPageLinkedList(PageLinkedList *, size_t);
+	uint8_t *GetViaIndexForPageLinkedList(PageLinkedList *, size_t);
 
 	// NOTE: Since this function can't assume that all elements will be evenly
 	// spaced out, it must go through the elements one by one and not make
@@ -183,12 +214,11 @@
 		// wrappers, while also allowing convenient access to data members of
 		// a given SinglePageCell.
 		union {
+			PageCell pageCell;
 			struct {
 				size_t amount, prevAmount, cap;
 				uint8_t *buffer;
 			};
-
-			PageCell pageCell;
 		};
 
 		size_t bytesPerElement;
@@ -198,7 +228,8 @@
 	void DeinitSinglePageCell(SinglePageCell *);
 	uint8_t *AddToSinglePageCell(SinglePageCell *, size_t);
 	SinglePageCell SinglePageCellFromPageLinkedList(PageLinkedList *);
-	uint8_t *GetFromIndexForSinglePageCell(SinglePageCell *, size_t);
+	uint8_t *GetViaIndexForSinglePageCell(SinglePageCell *, size_t);
+	SliceRef SliceRefFromSinglePageCell(SinglePageCell *);
 #endif
 
 // NOTE: This is put outside of the guard clause because a user might include
@@ -388,7 +419,7 @@
 		int stringCharAmount = 0;
 		for(; string[stringCharAmount] != 0; stringCharAmount++);
 
-		// NOTE(ElkElan): Bring in null terminator so that the whole string
+		// NOTE: Bring in null terminator so that the whole string
 		// is shown, since Slice/Ref doesn't work on null
 		// termination.
 		stringCharAmount++;
@@ -424,27 +455,28 @@
 	}
 
 	Slice *AddSliceToPageLinkedList(
-		PageLinkedList *linkedList, size_t amountToAdd
+		PageLinkedList *linkedList, size_t userByteAmount
 	) {
 		if(linkedList->bytesPerElement != sizeof(uint8_t)) { return NULL; }
+		size_t sliceByteAmount = ByteAmountForSlice(userByteAmount);
+		uint8_t *sliceAsData = AddToPageLinkedList(
+			linkedList, sliceByteAmount
+		);
 
-		size_t byteAmount = ByteAmountForSlice(amountToAdd);
-		uint8_t *sliceAsData = AddToPageLinkedList(linkedList, byteAmount);
 		return InitSliceFromDataForPageCell(
 			PageCellArrayLastCell(linkedList->lastCellArray),
-			sliceAsData, byteAmount
+			sliceAsData, sliceByteAmount
 		);
 	}
 
 	Slice *AddSliceToSinglePageCell(
-		SinglePageCell *cell, size_t amountToAdd
+		SinglePageCell *cell, size_t userByteAmount
 	) {
 		if(cell->bytesPerElement != sizeof(uint8_t)) { return NULL; }
-
-		size_t byteAmount = ByteAmountForSlice(amountToAdd);
-		uint8_t *sliceAsData = AddToSinglePageCell(cell, byteAmount);
+		size_t sliceByteAmount = ByteAmountForSlice(userByteAmount);
+		uint8_t *sliceAsData = AddToSinglePageCell(cell, sliceByteAmount);
 		return InitSliceFromDataForPageCell(
-			&cell->pageCell, sliceAsData, byteAmount
+			&cell->pageCell, sliceAsData, sliceByteAmount
 		);
 	}
 
@@ -591,20 +623,16 @@
 		}
 
 		for(int i = 0; i < increaseAmount; i++) {
-			Slice *element = (Slice *)(
-				iterator->currentElement
-			);
-
+			Slice *element = (Slice *)(iterator->currentElement);
 			if(!IterateNextInPageLinkedList(
-				iterator,
-				sizeof(Slice) + element->byteAmount - 1
+				iterator, element->byteAmount
 			)) { return FALSE; }
 		}
 
 		return TRUE;
 	}
 
-	size_t PageLinkedListGetTotalSize(PageLinkedList *linkedList) {
+	size_t GetTotalSizeForPageLinkedList(PageLinkedList *linkedList) {
 		size_t result = 0;
 		PageLinkedListIterator iterator = InitPageLinkedListIterator(
 			linkedList
@@ -618,7 +646,7 @@
 	}
 
 	PageCell PageLinkedListToPageCell(PageLinkedList *linkedList) {
-		size_t totalSize = PageLinkedListGetTotalSize(linkedList);
+		size_t totalSize = GetTotalSizeForPageLinkedList(linkedList);
 		PageCell result = {
 			.amount = totalSize, .cap = totalSize,
 			.buffer = PAGE_LINKED_LIST_INIT_PAGE(totalSize)
@@ -647,7 +675,7 @@
 		return result;
 	}
 
-	uint8_t *GetFromIndexForPageLinkedList(
+	uint8_t *GetViaIndexForPageLinkedList(
 		PageLinkedList *linkedList, size_t index
 	) {
 		PageLinkedListIterator iterator = InitPageLinkedListIterator(
@@ -705,9 +733,14 @@
 		};
 	}
 
-	uint8_t *GetFromIndexForSinglePageCell(
+	uint8_t *GetViaIndexForSinglePageCell(
 		SinglePageCell *cell, size_t index
-	) {
-		return &cell->buffer[index * cell->bytesPerElement];
+	) { return &cell->buffer[index * cell->bytesPerElement]; }
+
+	SliceRef SliceRefFromSinglePageCell(SinglePageCell *cell) {
+		return (SliceRef) {
+			.byteAmount = cell->amount * cell->bytesPerElement,
+			.buffer = &cell->buffer[0]
+		};
 	}
 #endif
