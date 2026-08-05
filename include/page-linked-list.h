@@ -28,7 +28,6 @@
 	//// Base includes, defines, and typedefs.
 	#include <stdint.h>
 
-
 	// NOTE: Spaces are included between functions to deliniate that the
 	// macros are not macros that take a form similar to that of a function.
 	#define PAGE_LINKED_LIST_INIT_PAGE(_byteAmount) \
@@ -53,16 +52,24 @@
 	// context about the memory allocations happening to be empowered enough
 	// to do allocations on its own.
 	typedef struct PageCell {
-		size_t amount, prevAmount, cap;
+		size_t bytesPerElement, amount, prevAmount, cap;
 		uint8_t *buffer;
 	} PageCell;
+
+	PageCell InitPageCell(size_t, size_t);
+	void DeinitPageCell(PageCell *);
+	uint8_t *AddToPageCell(PageCell *, size_t);
+	uint8_t *GetViaIndexForPageCell(PageCell *, size_t);
 
 	// NOTE: This struct is identical to PageCell and is only here to clarify
 	// semantic meaning. Casting a PageCell to a PageCellArrayHeaderStruct and
 	// vice versa results in no data loss.
 	typedef struct PageCellArrayHeader PageCellArrayHeader;
 	typedef struct PageCellArrayHeader {
-		size_t cellAmount, cellCap;
+
+		// INVARIANT: Cheap. In PageCellArrayHeader, bytesPerElement ==
+		// sizeof(uintptr_t).
+		size_t bytesPerElement, cellAmount, cellCap;
 		PageCellArrayHeader *nextCellArray;
 	} PageCellArrayHeader;
 
@@ -75,7 +82,7 @@
 		// However, this doesn't mean that elements of varying size can't be
 		// done with this data structure, bytePerElement just must be equal to
 		// sizeof(uint8_t).
-		size_t bytesPerElement, defaultCellCap, cellArrayCap;
+		size_t defaultBytesPerElement, defaultCellCap, cellArrayCap;
 		PageCellArrayHeader *firstCellArray;
 
 		// NOTE: This is for appending memory, having the last page cell array
@@ -90,9 +97,42 @@
 	void DeinitPageLinkedList(PageLinkedList *);
 
 	// NOTE: pageCap is in bytes.
-	PageCell *AddCustomPageToPageLinkedList(PageLinkedList *, size_t);
+	PageCell *AddCustomPageToPageLinkedList(PageLinkedList *, size_t, size_t);
 	PageCell *AddPageToPageLinkedList(PageLinkedList *);
 	uint8_t *AddToPageLinkedList(PageLinkedList *, size_t);
+
+	typedef struct PageLinkedListIterator {
+		PageLinkedList *linkedList;
+
+		PageCellArrayHeader *currentCellArray;
+
+		PageCell *currentCell;
+		size_t currentCellIndex;
+
+		uint8_t *currentElement;
+		size_t currentElementIndex;
+	} PageLinkedListIterator;
+
+	// TODO?: Make PageLinkedListIterator be able to iterate just on a
+	// PageCell.
+	//
+	// NOTE: Since PageLinkedListIterator doesn't hold any memory on its own,
+	// DeinitPageLinkedListIterator() isn't necessary.
+	PageLinkedListIterator InitPageLinkedListIterator(PageLinkedList *);
+
+	// NOTE: These IterateNext...() functions will only reset their relevant
+	// cell array/cell/element. Resetting any other relevant cell/element is
+	// the responsibility of the caller.
+	Bool IterateNextCellArrayInPageLinkedList(
+		PageLinkedListIterator *, size_t
+	);
+
+	Bool IterateNextCellInPageLinkedList(PageLinkedListIterator *, size_t);
+	Bool IterateNextInPageLinkedList(PageLinkedListIterator *, size_t);
+
+	size_t GetTotalSizeForPageLinkedList(PageLinkedList *);
+	PageCell PageLinkedListToPageCell(PageLinkedList *);
+	uint8_t *GetViaIndexForPageLinkedList(PageLinkedList *, size_t);
 
 	// NOTE: A convention for Slice/SliceRef is that byteAmount will exclude
 	// byteAmount and prevByteAmount.
@@ -136,10 +176,22 @@
 		uint8_t byteAmount, prevByteAmount, buffer[];
 	} Slice;
 
+	size_t GetBufferByteAmountInSlice(size_t);
+	size_t ByteAmountInSlice(size_t);
+	size_t GetStringByteAmountInSlice(size_t);
+
+	// NOTE: The input for the byte amount does not include the null
+	// terminator.
+	size_t ByteAmountForStringSlice(size_t);
+
 	// NOTE: If you want to use something akin to Slice but have
 	// no Slice to actually point to, you can use this. However, since
 	// SliceRef doesn't have functionality to be utilized by AddTo() type
 	// functions, nor does it need to, is lacks prevByteAmount.
+	//
+	// NOTE: The byteAmount of SliceRef will imitate the byteAmount for Slice
+	// in order to maintain compatability with Slice functions such as
+	// Get...AmountIn...(), and ByteAmountFor...().
 	typedef struct SliceRef {
 		size_t byteAmount;
 		uint8_t *buffer;
@@ -156,47 +208,20 @@
 	// NOTE: These function's buffer pointers point back to their arguments.
 	// As such, ensure that they are readily available to whatever relevant
 	// functions will use them.
+	Bool AreSliceRefsEqual(SliceRef, SliceRef);
 	SliceRef SliceIntoRef(Slice *);
 	SliceRef SliceRefFromCString(uint8_t *);
 
-	// NOTE: This only will run if PageLinkedList.bytesPerElement == sizeof(
-	// uint8_t).
+	// NOTE: This suite of functions below will only work if .bytesPerElement
+	// == sizeof(uint8_t).
+
+	// For PageCell.
+	Slice *AddSliceToPageCell(PageCell *, size_t);
+	SliceRef SliceRefFromPageCell(PageCell *);
+
+	// For PageLinkedList.
 	Slice *AddSliceToPageLinkedList(PageLinkedList *, size_t);
-
-	typedef struct SinglePageCell SinglePageCell;
-	Slice *AddSliceToSinglePageCell(SinglePageCell *, size_t);
-
-	typedef struct PageLinkedListIterator {
-		PageLinkedList *linkedList;
-
-		PageCellArrayHeader *currentCellArray;
-
-		PageCell *currentCell;
-		size_t currentCellIndex;
-
-		uint8_t *currentElement;
-		size_t currentElementIndex;
-	} PageLinkedListIterator;
-
-	// NOTE: Since PageLinkedListIterator doesn't hold any memory on its own,
-	// DeinitPageLinkedListIterator() isn't necessary.
-	PageLinkedListIterator InitPageLinkedListIterator(PageLinkedList *);
-
-	// NOTE: These ...Next... functions will only reset their relevant cell
-	// array/cell/element. Resetting any other relevant cell/element is the
-	// responsibility of the caller.
-	Bool IterateNextCellArrayInPageLinkedList(PageLinkedListIterator *, size_t);
-	Bool IterateNextCellInPageLinkedList(PageLinkedListIterator *, size_t);
-	Bool IterateNextInPageLinkedList(PageLinkedListIterator *, size_t);
-
-	// NOTE: Will only run if PageIterator.linkedList->bytesPerElement ==
-	// sizeof(uint8_t).
 	Bool IterateNextSliceInPageLinkedList(PageLinkedListIterator *, size_t);
-
-	size_t GetTotalSizeForPageLinkedList(PageLinkedList *);
-	PageCell PageLinkedListToPageCell(PageLinkedList *);
-
-	uint8_t *GetViaIndexForPageLinkedList(PageLinkedList *, size_t);
 
 	// NOTE: Since this function can't assume that all elements will be evenly
 	// spaced out, it must go through the elements one by one and not make
@@ -204,38 +229,56 @@
 	// function sparingly as it can cause performance issues.
 	Slice *GetSliceFromIndexForPageLinkedList(PageLinkedList *, size_t);
 
-	// NOTE: SinglePageCell can not convert to PageCell with no data loss,
-	// it is meant to be used by itself. If you have a piece of memory that
-	// will need to be flat and will often not change, you can use this.
-	typedef struct SinglePageCell {
+	// NOTE: Since Slice is required to be continuous, it can't be extended to
+	// another page. As such, the builder only works on PageCells but does
+	// allow the user to Init a builder from a PageLinkedList.
+	typedef struct SliceBuilder {
+		PageCell *cell;
+		Slice *currentSlice;
+	} SliceBuilder;
 
-		// NOTE: This union makes it trivial to copy functionality from
-		// PageCell to SinglePageCell, making SinglePageCell functions simple
-		// wrappers, while also allowing convenient access to data members of
-		// a given SinglePageCell.
-		union {
-			PageCell pageCell;
-			struct {
-				size_t amount, prevAmount, cap;
-				uint8_t *buffer;
-			};
-		};
-
-		size_t bytesPerElement;
-	} SinglePageCell;
-
-	SinglePageCell InitSinglePageCell(size_t, size_t);
-	void DeinitSinglePageCell(SinglePageCell *);
-	uint8_t *AddToSinglePageCell(SinglePageCell *, size_t);
-	SinglePageCell SinglePageCellFromPageLinkedList(PageLinkedList *);
-	uint8_t *GetViaIndexForSinglePageCell(SinglePageCell *, size_t);
-	SliceRef SliceRefFromSinglePageCell(SinglePageCell *);
+	SliceBuilder InitSliceBuilderFromPageCell(PageCell *);
+	SliceBuilder InitSliceBuilder(PageLinkedList *);
+	void BuildUponSliceBuilder(SliceBuilder *, size_t, uint8_t *);
 #endif
 
 // NOTE: This is put outside of the guard clause because a user might include
 // only the header part and then in another file include the implementation
 // part.
 #ifdef PAGE_LINKED_LIST_IMPL
+	PageCell InitPageCell(size_t pageCap, size_t bytesPerElement) {
+		if(pageCap == USE_DEFAULT_CAP) {
+			pageCap = PAGE_LINKED_LIST_BYTES_IN_PAGE_AMOUNT();
+		}
+
+		uint8_t *buffer = PAGE_LINKED_LIST_INIT_PAGE(
+			pageCap * bytesPerElement
+		);
+
+		if(buffer == NULL) { return (PageCell) { 0 }; }
+		return (PageCell) { .cap = pageCap, .buffer = buffer };
+	}
+
+	void DeinitPageCell(PageCell *cell) {
+		PAGE_LINKED_LIST_DEINIT_PAGE(&cell->buffer);
+	}
+
+	uint8_t *AddToPageCell(
+		PageCell *cell, size_t amountToAdd
+	) {
+		if(amountToAdd + cell->amount > cell->cap) { return NULL; }
+
+		uint8_t *result = &cell->buffer[cell->bytesPerElement * cell->amount];
+		cell->prevAmount = cell->amount;
+		cell->amount += amountToAdd;
+		return result;
+	}
+
+	uint8_t *GetViaIndexForPageCell(PageCell *cell, size_t index) {
+		return &cell->buffer[index * cell->bytesPerElement];
+	}
+
+
 	PageCell *PageCellArrayFirstCell(PageCellArrayHeader *arrayHeader) {
 
 		// NOTE: Can't do PageCellArrayHeader * -> PageCell *, I have to use
@@ -260,17 +303,13 @@
 	}
 
 
-	PageLinkedList InitPageLinkedList(size_t bytesPerElement) {
+	PageLinkedList InitPageLinkedList(size_t defaultBytesPerElement) {
 		size_t bytesInPage = PAGE_LINKED_LIST_BYTES_IN_PAGE_AMOUNT();
 		return (PageLinkedList) {
-			.bytesPerElement = bytesPerElement,
-			.defaultCellCap = bytesInPage / bytesPerElement,
+			.defaultBytesPerElement = defaultBytesPerElement,
+			.defaultCellCap = bytesInPage / defaultBytesPerElement,
 			.cellArrayCap = bytesInPage / sizeof(PageCell)
 		};
-	}
-
-	static void DeinitPageCell(PageCell *cell) {
-		PAGE_LINKED_LIST_DEINIT_PAGE(&cell->buffer);
 	}
 
 	void DeinitPageLinkedList(PageLinkedList *linkedList) {
@@ -295,21 +334,8 @@
 		}
 	}
 
-	static PageCell InitPageCell(size_t pageCap, size_t bytesPerElement) {
-		if(pageCap == USE_DEFAULT_CAP) {
-			pageCap = PAGE_LINKED_LIST_BYTES_IN_PAGE_AMOUNT();
-		}
-
-		uint8_t *buffer = PAGE_LINKED_LIST_INIT_PAGE(
-			pageCap * bytesPerElement
-		);
-
-		if(buffer == NULL) { return (PageCell) { 0 }; }
-		return (PageCell) { .cap = pageCap, .buffer = buffer };
-	}
-
 	PageCell *AddCustomPageToPageLinkedList(
-		PageLinkedList *linkedList, size_t pageCap
+		PageLinkedList *linkedList, size_t pageCap, size_t bytesPerElement
 	) {
 
 		// NOTE: If the first cell array in a page linked list is null, this
@@ -354,26 +380,15 @@
 		linkedList->lastCellArray->cellAmount++;
 
 		PageCell *result = PageCellArrayLastCell(linkedList->lastCellArray);
-		*result = InitPageCell(pageCap, linkedList->bytesPerElement);
+		*result = InitPageCell(pageCap, linkedList->defaultBytesPerElement);
 		return result;
 	}
 
 	PageCell *AddPageToPageLinkedList(PageLinkedList *linkedList) {
 		return AddCustomPageToPageLinkedList(
-			linkedList, linkedList->defaultCellCap
+			linkedList,
+			linkedList->defaultCellCap, linkedList->defaultBytesPerElement
 		);
-	}
-
-	static uint8_t *AddToPageCell(
-		PageCell *cell,
-		size_t amountToAdd, size_t bytesPerElement
-	) {
-		if(amountToAdd + cell->amount > cell->cap) { return NULL; }
-
-		uint8_t *result = &cell->buffer[bytesPerElement * cell->amount];
-		cell->prevAmount = cell->amount;
-		cell->amount += amountToAdd;
-		return result;
 	}
 
 	uint8_t *AddToPageLinkedList(
@@ -386,7 +401,7 @@
 		// NOTE: This is intended for extraordinarily large pages.
 		if(amountToAdd > linkedList->defaultCellCap) {
 			PageCell *newCell = AddCustomPageToPageLinkedList(
-				linkedList, amountToAdd
+				linkedList, amountToAdd, linkedList->defaultBytesPerElement
 			);
 
 			if(newCell == NULL) { return NULL; }
@@ -401,83 +416,7 @@
 			lastCell = newCell;
 		}
 
-		return AddToPageCell(
-			lastCell,
-			amountToAdd, linkedList->bytesPerElement
-		);
-	}
-
-
-	SliceRef SliceIntoRef(Slice *element) {
-		return (SliceRef) {
-			.byteAmount = element->byteAmount,
-			.buffer = &element->buffer[0]
-		};
-	}
-
-	SliceRef SliceRefFromCString(uint8_t *string) {
-		int stringCharAmount = 0;
-		for(; string[stringCharAmount] != 0; stringCharAmount++);
-
-		// NOTE: Bring in null terminator so that the whole string
-		// is shown, since Slice/Ref doesn't work on null
-		// termination.
-		stringCharAmount++;
-		return (SliceRef) {
-			.byteAmount = stringCharAmount * sizeof(uint8_t),
-			.buffer = &string[0]
-		};
-	}
-
-	static size_t ByteAmountForSlice(size_t byteAmount) {
-		return sizeof(Slice) + byteAmount;
-	}
-
-	static Slice *InitSliceFromData(
-		uint8_t *sliceAsData, size_t byteAmount, size_t prevByteAmount
-	) {
-		if(sliceAsData == NULL) { return NULL; }
-
-		Slice *slice = (Slice *)(sliceAsData);
-		*slice = (Slice) {
-			.byteAmount = byteAmount, .prevByteAmount = prevByteAmount
-		};
-
-		return slice;
-	}
-
-	static Slice *InitSliceFromDataForPageCell(
-		PageCell *cell, uint8_t *sliceAsData, size_t byteAmount
-	) {
-		return InitSliceFromData(
-			sliceAsData, byteAmount, cell->amount - cell->prevAmount
-		);
-	}
-
-	Slice *AddSliceToPageLinkedList(
-		PageLinkedList *linkedList, size_t userByteAmount
-	) {
-		if(linkedList->bytesPerElement != sizeof(uint8_t)) { return NULL; }
-		size_t sliceByteAmount = ByteAmountForSlice(userByteAmount);
-		uint8_t *sliceAsData = AddToPageLinkedList(
-			linkedList, sliceByteAmount
-		);
-
-		return InitSliceFromDataForPageCell(
-			PageCellArrayLastCell(linkedList->lastCellArray),
-			sliceAsData, sliceByteAmount
-		);
-	}
-
-	Slice *AddSliceToSinglePageCell(
-		SinglePageCell *cell, size_t userByteAmount
-	) {
-		if(cell->bytesPerElement != sizeof(uint8_t)) { return NULL; }
-		size_t sliceByteAmount = ByteAmountForSlice(userByteAmount);
-		uint8_t *sliceAsData = AddToSinglePageCell(cell, sliceByteAmount);
-		return InitSliceFromDataForPageCell(
-			&cell->pageCell, sliceAsData, sliceByteAmount
-		);
+		return AddToPageCell(lastCell, amountToAdd);
 	}
 
 
@@ -603,46 +542,11 @@
 		}
 
 		iterator->currentElement = &iterator->currentCell->buffer[
-			iterator->linkedList->bytesPerElement *
+			iterator->linkedList->defaultBytesPerElement *
 			iterator->currentElementIndex
 		];
 
 		return TRUE;
-	}
-
-	Bool IterateNextSliceInPageLinkedList(
-		PageLinkedListIterator *iterator, size_t increaseAmount
-	) {
-		if(iterator->linkedList->bytesPerElement != sizeof(uint8_t)) {
-			return FALSE;
-		}
-
-		if(iterator->currentElement == NULL) {
-			if(!IterateNextInPageLinkedList(iterator, 1)) { return FALSE; }
-			increaseAmount--;
-		}
-
-		for(int i = 0; i < increaseAmount; i++) {
-			Slice *element = (Slice *)(iterator->currentElement);
-			if(!IterateNextInPageLinkedList(
-				iterator, element->byteAmount
-			)) { return FALSE; }
-		}
-
-		return TRUE;
-	}
-
-	size_t GetTotalSizeForPageLinkedList(PageLinkedList *linkedList) {
-		size_t result = 0;
-		PageLinkedListIterator iterator = InitPageLinkedListIterator(
-			linkedList
-		);
-
-		while(IterateNextCellInPageLinkedList(&iterator, 1)) {
-			result += iterator.currentCell->amount;
-		}
-
-		return result;
 	}
 
 	PageCell PageLinkedListToPageCell(PageLinkedList *linkedList) {
@@ -659,7 +563,7 @@
 
 		while(IterateNextCellInPageLinkedList(&iterator, 1)) {
 			size_t byteAmount = (
-				linkedList->bytesPerElement *
+				linkedList->defaultBytesPerElement *
 				iterator.currentCell->amount
 			);
 
@@ -670,6 +574,19 @@
 			);
 
 			currentIndex += byteAmount;
+		}
+
+		return result;
+	}
+
+	size_t GetTotalSizeForPageLinkedList(PageLinkedList *linkedList) {
+		size_t result = 0;
+		PageLinkedListIterator iterator = InitPageLinkedListIterator(
+			linkedList
+		);
+
+		while(IterateNextCellInPageLinkedList(&iterator, 1)) {
+			result += iterator.currentCell->amount;
 		}
 
 		return result;
@@ -690,6 +607,123 @@
 		return iterator.currentElement;
 	}
 
+
+	size_t GetBufferByteAmountInSlice(size_t byteAmount) {
+		return byteAmount - sizeof(Slice);
+	}
+
+	size_t ByteAmountForSlice(size_t bufferByteAmount) {
+		return sizeof(Slice) + bufferByteAmount;
+	}
+
+	size_t GetStringByteAmountInSlice(size_t byteAmount) {
+		return (
+			GetBufferByteAmountInSlice(byteAmount) -
+			sizeof(uint8_t) // Null terminator.
+		);
+	}
+
+	size_t ByteAmountForStringSlice(size_t stringByteAmount) {
+		return ByteAmountForSlice(
+			stringByteAmount + sizeof(uint8_t) // Null terminator.
+		);
+	}
+
+	static Slice *InitSliceFromData(
+		uint8_t *sliceAsData, size_t byteAmount, size_t prevByteAmount
+	) {
+		if(sliceAsData == NULL) { return NULL; }
+
+		Slice *slice = (Slice *)(sliceAsData);
+		*slice = (Slice) {
+			.byteAmount = byteAmount, .prevByteAmount = prevByteAmount
+		};
+
+		return slice;
+	}
+
+	static Slice *InitSliceFromDataForPageCell(
+		PageCell *cell, uint8_t *sliceAsData, size_t byteAmount
+	) {
+		return InitSliceFromData(
+			sliceAsData, byteAmount, cell->amount - cell->prevAmount
+		);
+	}
+
+
+	Bool AreSliceRefsEqual(SliceRef a, SliceRef b) {
+		if(a.byteAmount != b.byteAmount) { return FALSE; }
+		for(int i = 0; i < a.byteAmount - sizeof(Slice); i++) {
+			if(a.buffer[i] != b.buffer[i]) { return FALSE; }
+		}
+
+		return TRUE;
+	}
+
+	SliceRef SliceIntoRef(Slice *element) {
+		return (SliceRef) {
+			.byteAmount = element->byteAmount,
+			.buffer = &element->buffer[0]
+		};
+	}
+
+	SliceRef SliceRefFromCString(uint8_t *string) {
+		int stringCharAmount = 0;
+		for(; string[stringCharAmount] != 0; stringCharAmount++);
+		return (SliceRef) {
+			.byteAmount = ByteAmountForStringSlice(stringCharAmount),
+			.buffer = &string[0]
+		};
+	}
+
+	// For PageLinkedList.
+	Slice *AddSliceToPageLinkedList(
+		PageLinkedList *linkedList, size_t bufferByteAmount
+	) {
+		if(linkedList->defaultBytesPerElement != sizeof(uint8_t)) {
+			return NULL;
+		}
+
+		size_t sliceByteAmount = ByteAmountForSlice(bufferByteAmount);
+		uint8_t *sliceAsData = AddToPageLinkedList(
+			linkedList, sliceByteAmount
+		);
+
+		return InitSliceFromDataForPageCell(
+			PageCellArrayLastCell(linkedList->lastCellArray),
+			sliceAsData, sliceByteAmount
+		);
+	}
+
+	// For PageLinkedListIterator.
+	Bool IterateNextSliceInPageLinkedList(
+		PageLinkedListIterator *iterator, size_t increaseAmount
+	) {
+		if(iterator->currentElement == NULL) {
+			if(!IterateNextInPageLinkedList(iterator, 1)) { return FALSE; }
+			increaseAmount--;
+		}
+
+		if(iterator->currentCell->bytesPerElement != sizeof(uint8_t)) {
+
+			// TODO?: To return false? Or to iterate next page? That is the
+			// question. Whether it is nobler in the mind to suffer the slings
+			// and arrows of outrageous API. Or to take arms against a sea
+			// of troubllles and by opposing, end them. To die. To sleep,
+			// no more. - Billy Madison.
+			return FALSE;
+		}
+
+		for(int i = 0; i < increaseAmount; i++) {
+			Slice *element = (Slice *)(iterator->currentElement);
+			if(!IterateNextInPageLinkedList(iterator, element->byteAmount)) {
+				return FALSE;
+			}
+		}
+
+		return TRUE;
+	}
+
 	Slice *GetSliceFromIndexForPageLinkedList(
 		PageLinkedList *linkedList, size_t index
 	) {
@@ -697,50 +731,67 @@
 			linkedList
 		);
 
-		if(!IterateNextSliceInPageLinkedList(&iterator, index + 1)) { return NULL; }
+		if(!IterateNextSliceInPageLinkedList(&iterator, index + 1)) {
+			return NULL;
+		}
+
 		return (Slice *)(iterator.currentElement);
 	}
 
-
-	SinglePageCell InitSinglePageCell(size_t bytesPerElement, size_t cap) {
-		return (SinglePageCell) {
-			.bytesPerElement = bytesPerElement,
-			.pageCell = InitPageCell(cap, bytesPerElement)
-		};
-	}
-
-	void DeinitSinglePageCell(SinglePageCell *singlePageCell) {
-		DeinitPageCell(&singlePageCell->pageCell);
-	}
-
-	uint8_t *AddToSinglePageCell(
-		SinglePageCell *singlePageCell, size_t amountToAdd
+	// For PageCell.
+	Slice *AddSliceToPageCell(
+		PageCell *cell, size_t bufferByteAmount
 	) {
-		return AddToPageCell(
-			&singlePageCell->pageCell,
-			amountToAdd, singlePageCell->bytesPerElement
+		if(cell->bytesPerElement != sizeof(uint8_t)) { return NULL; }
+		size_t sliceByteAmount = ByteAmountForSlice(bufferByteAmount);
+		uint8_t *sliceAsData = AddToPageCell(cell, sliceByteAmount);
+		return InitSliceFromDataForPageCell(
+			cell, sliceAsData, sliceByteAmount
 		);
 	}
 
-	// NOTE: If you want a SinglePageCell that has slightly more information
-	// about what you're working with, then calling this will work.
-	SinglePageCell SinglePageCellFromPageLinkedList(
-		PageLinkedList *linkedList
-	) {
-		return (SinglePageCell) {
-			.pageCell = PageLinkedListToPageCell(linkedList),
-			.bytesPerElement = linkedList->bytesPerElement,
-		};
-	}
-
-	uint8_t *GetViaIndexForSinglePageCell(
-		SinglePageCell *cell, size_t index
-	) { return &cell->buffer[index * cell->bytesPerElement]; }
-
-	SliceRef SliceRefFromSinglePageCell(SinglePageCell *cell) {
+	SliceRef SliceRefFromPageCell(PageCell *cell) {
 		return (SliceRef) {
 			.byteAmount = cell->amount * cell->bytesPerElement,
 			.buffer = &cell->buffer[0]
 		};
+	}
+
+
+	SliceBuilder InitSliceBuilderFromPageCell(PageCell *cell) {
+		if(cell->bytesPerElement != sizeof(uint8_t)) {
+			return (SliceBuilder) { 0 };
+		}
+
+		return (SliceBuilder) { .cell = cell };
+	}
+
+	SliceBuilder InitSliceBuilder(PageLinkedList *linkedList) {
+		return InitSliceBuilderFromPageCell(
+			PageCellArrayLastCell(linkedList->lastCellArray)
+		);
+	}
+
+	void BuildUponSliceBuilder(
+		SliceBuilder *builder, size_t amount, uint8_t *src
+	) {
+		if(builder->currentSlice == NULL) {
+			builder->currentSlice = (Slice *)(AddToPageCell(
+				builder->cell, ByteAmountForSlice(0)
+			));
+
+			if(builder->currentSlice == NULL) { return; }
+		}
+
+		uint8_t *newSliceData = AddToPageCell(
+			builder->cell, amount
+		);
+
+		if(newSliceData == NULL) { return; }
+
+		builder->currentSlice->byteAmount += amount;
+		if(src != NULL) {
+			memcpy(&newSliceData[0], &src[0], amount);
+		}
 	}
 #endif
