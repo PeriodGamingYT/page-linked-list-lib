@@ -106,28 +106,29 @@
 	// terminator.
 	size_t ByteAmountForStringSlice(size_t);
 
-	typedef struct PageHeader;
 	typedef struct PageHeader { union {
 		Slice slice;
 		struct {
 			uint8_t byteAmount, prevByteAmount, elementByteAmount;
 			uint16_t elementAmount, elementCap;
-			PageHeader *prev, *next;
+			struct PageHeader *prev, *next;
 		};
 	}; } PageHeader;
 
-	PageHeader *InitPage(size_t, size_t);
-	PageHeader *InitPageFromHeader(PageHeader *);
-	void DeinitPage(PageHeader *);
+	PageHeader *InitPageHeader(size_t, size_t);
+	PageHeader *InitPageHeaderFromHeader(PageHeader *);
+	void DeinitPageHeader(PageHeader **);
 	uint8_t *FirstElementInPage(PageHeader *);
 	uint8_t *NthElementInPage(PageHeader *, size_t);
 
 	typedef struct PageLinkedList {
 		PageHeader *head, *tail;
-		size_t defaultElementByteAmount, defaultByteCap;
+		size_t defaultPageByteCap, defaultElementByteAmount;
 	} PageLinkedList;
 
-	PageHeader *AddPageToLinkedListUsingHeader(PageLinkedList *, PageHeader *);
+	PageLinkedList InitPageLinkedList(size_t, size_t);
+	void DeinitPageLinkedList(PageLinkedList *);
+	PageHeader *AddPageToLinkedListFromHeader(PageLinkedList *, PageHeader *);
 	PageHeader *AddPageToLinkedList(PageLinkedList *);
 	void RemovePageFromLinkedList(PageLinkedList *);
 	uint8_t *AddElementsToPageLinkedList(PageLinkedList *, size_t);
@@ -140,7 +141,7 @@
 
 	typedef struct PageLinkedListIter {
 		PageLinkedList *linkedList;
-		PageHeader *page;
+		PageHeader *pageHeader;
 		uint8_t *element; size_t elementIndex;
 	} PageLinkedListIter;
 
@@ -148,7 +149,7 @@
 	Bool NextPageInLinkedListIter(PageLinkedListIter *, size_t);
 	Bool NextElementInLinkedListIter(PageLinkedListIter *, size_t);
 
-	size_t TotalSizeOfPageLinkedList(PageLinkedList *);
+	size_t TotalElementAmountOfPageLinkedList(PageLinkedList *);
 	uint8_t *NthElementInPageLinkedList(PageLinkedList *, size_t);
 
 	/*
@@ -228,9 +229,10 @@
 	// As such, ensure that they are readily available to whatever relevant
 	// functions will use them.
 	Bool AreSliceRefsEqual(SliceRef, SliceRef);
-	SliceRef SliceIntoRef(Slice *);
+	// SliceRef SliceIntoRef(Slice *);
 	SliceRef SliceRefFromCString(uint8_t *);
 
+	/*
 	// NOTE: This suite of functions below will only work if .bytesPerElement
 	// == sizeof(uint8_t).
 
@@ -262,6 +264,7 @@
 	SliceBuilder InitSliceBuilder(PageLinkedList *);
 	uint8_t *BuildUponSliceBuilder(SliceBuilder *, size_t, uint8_t *);
 	uint8_t *BuildUponSliceBuilderWithRef(SliceBuilder *, SliceRef);
+	*/
 #endif
 
 // NOTE: This is put outside of the guard clause because a user might include
@@ -291,44 +294,65 @@
 		);
 	}
 
-	PageHeader *InitPage(size_t pageCap, size_t elementByteAmount) {
-		if(pageCap == USE_DEFAULT_CAP) {
-			pageCap = PAGE_LINKED_LIST_BYTES_IN_PAGE_AMOUNT();
+	PageHeader *InitPageHeader(size_t pageByteCap, size_t elementByteAmount) {
+		if(pageByteCap == USE_DEFAULT_CAP) {
+			pageByteCap = PAGE_LINKED_LIST_BYTES_IN_PAGE_AMOUNT();
 		}
 
-		uint8_t *buffer = PAGE_LINKED_LIST_INIT_PAGE(pageCap);
+		uint8_t *buffer = PAGE_LINKED_LIST_INIT_PAGE(pageByteCap);
 		if(buffer == NULL) { return NULL; }
 
 		PageHeader *header = (PageHeader *)(buffer);
 		*header = (PageHeader) {
 			.byteAmount = sizeof(PageHeader),
 			.elementByteAmount = elementByteAmount,
-			.elementCap = (int)(pageCap / elementByteAmount)
+			.elementCap = (int)(pageByteCap / elementByteAmount)
 		};
 
 		return header;
 	}
 
-	PageHeader *InitPageFromHeader(PageHeader *header) {
-		return InitPage(header->pageCap, header->elementByteAmount);
+	PageHeader *InitPageHeaderFromHeader(PageHeader *header) {
+		return InitPageHeader(
+			header->elementCap * header->elementByteAmount,
+			header->elementByteAmount);
 	}
 
-	void DeinitPage(PageHeader **header) {
+	void DeinitPageHeader(PageHeader **header) {
 		PAGE_LINKED_LIST_DEINIT_PAGE((uint8_t **)(header));
 	}
 
 	uint8_t *FirstElementInPage(PageHeader *header) {
-		return &((uint8_t *)(header)[header->byteAmount]);
+		return &(((uint8_t *)(header))[header->byteAmount]);
 	}
 
 	uint8_t *NthElementInPage(PageHeader *header, size_t index) {
 		return &FirstElementInPage(header)[index * header->elementByteAmount];
 	}
 
+	PageLinkedList InitPageLinkedList(
+		size_t pageByteCap, size_t elementByteAmount) {
+		return (PageLinkedList) {
+			.defaultPageByteCap = pageByteCap,
+			.defaultElementByteAmount = elementByteAmount
+		};
+	}
 
-	PageHeader *AddPageToLinkedListUsingHeader(
+	void DeinitPageLinkedList(PageLinkedList *linkedList) {
+		for(
+			PageHeader *header = linkedList->head;
+			header != NULL;
+			/* ... */
+		) {
+			PageHeader *next = header->next;
+			DeinitPageHeader(&next);
+			header = next;
+		}
+	}
+
+	PageHeader *AddPageToLinkedListFromHeader(
 		PageLinkedList *linkedList, PageHeader *header) {
-		PageHeader *newPage = InitPageFromHeader(header);
+		PageHeader *newPage = InitPageHeaderFromHeader(header);
 		if(newPage == NULL) { return NULL; }
 
 		linkedList->tail->next = newPage;
@@ -338,12 +362,12 @@
 	}
 
 	PageHeader *AddPageToLinkedList(PageLinkedList *linkedList) {
-		return AddPageToLinkedListUsingHeader(linkedList->tail);
+		return AddPageToLinkedListFromHeader(linkedList, linkedList->tail);
 	}
 
 	void RemovePageFromLinkedList(PageLinkedList *linkedList) {
 		PageHeader *newTail = linkedList->tail->prev;
-		DeinitPage(&linkedList->tail);
+		DeinitPageHeader(&linkedList->tail);
 
 		if(newTail == NULL) {
 			linkedList->head = NULL;
@@ -389,24 +413,24 @@
 
 	Bool NextPageInLinkedListIter(
 		PageLinkedListIter *iter, size_t advancePageAmount) {
-		if(iter->page == NULL && advancePageAmount >= 1) {
-			iter->page = linkedList->head;
+		if(iter->pageHeader == NULL && advancePageAmount >= 1) {
+			iter->pageHeader = iter->linkedList->head;
 			advancePageAmount--;
 		}
 
 		for(
 			;
-			advancePageAmount > 0 && iter->page != NULL;
+			advancePageAmount > 0 && iter->pageHeader != NULL;
 			advancePageAmount--) {
-			iter->page = iter->page->next;
+			iter->pageHeader = iter->pageHeader->next;
 		}
 
-		return iter->page != NULL;
+		return iter->pageHeader != NULL;
 	}
 
 	Bool NextElementInLinkedListIter(
 		PageLinkedListIter *iter, size_t advanceElementAmount) {
-		if(iter->page == NULL) {
+		if(iter->pageHeader == NULL) {
 			NextPageInLinkedListIter(iter, 1);
 
 			// NOTE: Most likely true and safe to assume as an invariant, but
@@ -416,20 +440,19 @@
 		}
 
 		if(iter->element == NULL && advanceElementAmount >= 1) {
-			iter->element = FirstElementInPage(iter->page);
+			iter->element = FirstElementInPage(iter->pageHeader);
 			iter->elementIndex = 0;
 			advanceElementAmount--;
 		}
 
-		while(advanceElementAmount > 0 && iter->page != NULL) {
+		while(advanceElementAmount > 0 && iter->pageHeader != NULL) {
 			if(
 				iter->elementIndex + advanceElementAmount <
-				iter->page->elementAmount
+				iter->pageHeader->elementAmount
 			) {
-
-				// TODO?: May shoot over by one because indices are zero-based.
 				iter->element += (
-					iter->elementByteAmount * advanceElementAmount);
+					iter->pageHeader->elementByteAmount *
+					advanceElementAmount);
 
 				iter->elementIndex += advanceElementAmount;
 				return TRUE;
@@ -437,13 +460,21 @@
 		}
 	}
 
-	size_t TotalSizeOfPageLinkedList(PageLinkedList *linkedList) {
+	size_t TotalElementAmountOfPageLinkedList(PageLinkedList *linkedList) {
+		PageLinkedListIter iter = InitPageLinkedListIter(linkedList);
+		size_t result = 0;
+		while(NextPageInLinkedListIter(&iter, 1)) {
+			result += iter.pageHeader->elementAmount;
+		}
 
+		return result;
 	}
 
 	uint8_t *NthElementInPageLinkedList(
 		PageLinkedList *linkedList, size_t index) {
-
+		PageLinkedListIter iter = InitPageLinkedListIter(linkedList);
+		NextElementInLinkedList(&iter, index);
+		return iter.element;
 	}
 
 	/*
@@ -641,6 +672,7 @@
 		destRef.zeroByteAmount = 1;
 	}
 
+	/*
 	static Slice *InitSliceFromData(
 		uint8_t *sliceAsData, size_t byteAmount, size_t prevByteAmount) {
 		if(sliceAsData == NULL) { return NULL; }
@@ -658,6 +690,7 @@
 		return InitSliceFromData(
 			sliceAsData, byteAmount, cell->amount - cell->prevAmount);
 	}
+	*/
 
 	Bool AreSliceRefsEqual(SliceRef a, SliceRef b) {
 		if(
@@ -672,12 +705,14 @@
 		return TRUE;
 	}
 
+	/*
 	SliceRef SliceIntoRef(Slice *element) {
 		return (SliceRef) {
 			.byteAmount = element->byteAmount,
 			.buffer = &element->buffer[0]
 		};
 	}
+	*/
 
 	SliceRef SliceRefFromCString(uint8_t *string) {
 		int stringCharAmount = 0;
@@ -691,6 +726,8 @@
 		};
 	}
 
+
+	/*
 	// For PageLinkedList.
 	Slice *AddSliceToPageLinkedList(
 		PageLinkedList *linkedList, size_t bufferByteAmount) {
@@ -802,4 +839,5 @@
 		SliceBuilder *builder, SliceRef ref) {
 		return BuildUponSliceBuilder(builder, ref.byteAmount, &ref.buffer[0]);
 	}
+	*/
 #endif

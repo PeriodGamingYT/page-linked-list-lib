@@ -12,9 +12,7 @@
 	#pragma comment(lib, "ole32.lib")
 	#pragma comment(lib, "ntdll.lib")
 
-	#include <stdarg.h>
 	#include <stdint.h>
-	#include <wchar.h>
 
 	#define PAGE_LINKED_LIST_INIT_PAGE_FUNC InitPage
 	#define PAGE_LINKED_LIST_DEINIT_PAGE_FUNC DeinitPage
@@ -30,9 +28,6 @@
 	#else
 		#define DEBUG_CRASH(...) OutputDebugStringA("DEBUG_CRASH at " __FILE__)
 	#endif
-
-	// Misc. typedefs.
-	typedef uint8_t Bool;
 
 	//// Functions needed for page linked list.
 	uint8_t *InitPage(size_t);

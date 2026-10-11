@@ -28,8 +28,7 @@
 			NULL,
 			byteAmount,
 			MEM_RESERVE | MEM_COMMIT,
-			PAGE_READWRITE
-		));
+			PAGE_READWRITE));
 	}
 
 	void DeinitPage(uint8_t **bufferPointer) {
@@ -55,7 +54,7 @@ int main() {
 	// act as a test suite.
 	PageLinkedList linkedList = InitPageLinkedList(sizeof(int)); {
 		for(int i = 0; i < 200000; i++) {
-			*(int *)(AddToPageLinkedList(&linkedList, 1)) = i;
+			*(int *)(AddElementsToPageLinkedList(&linkedList, 1)) = i;
 		}
 
 		PageLinkedListIter iter = InitPageLinkedListIter(&linkedList);
@@ -68,7 +67,7 @@ int main() {
 		}
 
 		for(int i = 0; /* ... */; i += 1000) {
-			int *result = (int *)(NthElementPageLinkedList(&linkedList, i));
+			int *result = (int *)(NthElementInPageLinkedList(&linkedList, i));
 
 			if(result == NULL) { break; }
 
@@ -79,11 +78,11 @@ int main() {
 		}
 
 		printf(
-			"The page linked list is %zd elements long\n\n",
-			TotalSizeForPageLinkedList(&linkedList));
+			"The page linked list is %zu elements long\n\n",
+			TotalElementAmountOfPageLinkedList(&linkedList));
 	} DeinitPageLinkedList(&linkedList);
 
-	// TODO: Once the above works,
+	// TODO: Once the above works, test this part below.
 	/*
 	// NOTE: This is a test suite testing Slice.
 	linkedList = InitPageLinkedList(sizeof(uint8_t)); {
@@ -117,7 +116,8 @@ int main() {
 			// printf("%d\n", element->buffer[element->bytesAmount - 1]);
 		}
 
-		for(int i = 0; ; i += 1000) {
+		// TODO: No nested comments :(. Will error obviously.
+		for(int i = 0; ...; i += 1000) {
 			Slice *element = GetSliceFromIndexForPageLinkedList(
 				&linkedList, i
 			);
