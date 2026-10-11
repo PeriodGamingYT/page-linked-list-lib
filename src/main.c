@@ -58,22 +58,17 @@ int main() {
 			*(int *)(AddToPageLinkedList(&linkedList, 1)) = i;
 		}
 
-		PageLinkedListIterator iterator = InitPageLinkedListIterator(
-			&linkedList
-		);
-
-		while(IterateNextInPageLinkedList(&iterator, 1)) {
+		PageLinkedListIter iter = InitPageLinkedListIter(&linkedList);
+		while(NextElementInLinkedListIter(&iter, 1)) {
 
 			// NOTE: This is commented out because printing all these out takes
 			// a fair bit of time, printing is slow (Thanks to Microslop!, see
 			// refterm).
-			// printf("%d\n", *(int *)(iterator.currentElement));
+			// printf("%d\n", *(int *)(iter.currentElement));
 		}
 
 		for(int i = 0; /* ... */; i += 1000) {
-			int *result = (int *)(GetViaIndexForPageLinkedList(
-				&linkedList, i
-			));
+			int *result = (int *)(NthElementPageLinkedList(&linkedList, i));
 
 			if(result == NULL) { break; }
 
@@ -85,8 +80,7 @@ int main() {
 
 		printf(
 			"The page linked list is %zd elements long\n\n",
-			GetTotalSizeForPageLinkedList(&linkedList)
-		);
+			TotalSizeForPageLinkedList(&linkedList));
 	} DeinitPageLinkedList(&linkedList);
 
 	// NOTE: This is a test suite testing Slice.
