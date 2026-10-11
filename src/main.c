@@ -52,12 +52,14 @@ int main() {
 
 	// NOTE: This is meant to demonstrate the usage of PageLinkedList and also
 	// act as a test suite.
-	PageLinkedList linkedList = InitPageLinkedList(sizeof(int)); {
+	PageLinkedList linkedList = InitPageLinkedList(
+		USE_DEFAULT_CAP, sizeof(int)); {
 		for(int i = 0; i < 200000; i++) {
 			*(int *)(AddElementsToPageLinkedList(&linkedList, 1)) = i;
 		}
 
 		PageLinkedListIter iter = InitPageLinkedListIter(&linkedList);
+
 		while(NextElementInLinkedListIter(&iter, 1)) {
 
 			// NOTE: This is commented out because printing all these out takes

@@ -332,6 +332,10 @@
 
 	PageLinkedList InitPageLinkedList(
 		size_t pageByteCap, size_t elementByteAmount) {
+		if(pageByteCap == USE_DEFAULT_CAP) {
+			pageByteCap = PAGE_LINKED_LIST_BYTES_IN_PAGE_AMOUNT();
+		}
+
 		return (PageLinkedList) {
 			.defaultPageByteCap = pageByteCap,
 			.defaultElementByteAmount = elementByteAmount
@@ -359,6 +363,7 @@
 		newPage->prev = linkedList->tail;
 
 		linkedList->tail = newPage;
+		return linkedList->tail;
 	}
 
 	PageHeader *AddPageToLinkedList(PageLinkedList *linkedList) {
@@ -458,6 +463,8 @@
 				return TRUE;
 			}
 		}
+
+		return FALSE;
 	}
 
 	size_t TotalElementAmountOfPageLinkedList(PageLinkedList *linkedList) {
@@ -473,7 +480,7 @@
 	uint8_t *NthElementInPageLinkedList(
 		PageLinkedList *linkedList, size_t index) {
 		PageLinkedListIter iter = InitPageLinkedListIter(linkedList);
-		NextElementInLinkedList(&iter, index);
+		NextElementInLinkedListIter(&iter, index);
 		return iter.element;
 	}
 
