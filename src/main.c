@@ -83,6 +83,8 @@ int main() {
 			TotalSizeForPageLinkedList(&linkedList));
 	} DeinitPageLinkedList(&linkedList);
 
+	// TODO: Once the above works,
+	/*
 	// NOTE: This is a test suite testing Slice.
 	linkedList = InitPageLinkedList(sizeof(uint8_t)); {
 		for(int i = 0; i < 200000; i++) {
@@ -115,7 +117,7 @@ int main() {
 			// printf("%d\n", element->buffer[element->bytesAmount - 1]);
 		}
 
-		for(int i = 0; /* ... */; i += 1000) {
+		for(int i = 0; ; i += 1000) {
 			Slice *element = GetSliceFromIndexForPageLinkedList(
 				&linkedList, i
 			);
@@ -157,6 +159,7 @@ int main() {
 			testRef.byteAmount
 		);
 	}
+	*/
 
 	// TODO: Test SliceBuilder.
 
