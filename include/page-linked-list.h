@@ -128,7 +128,7 @@
 
 	PageLinkedList InitPageLinkedList(size_t, size_t);
 	void DeinitPageLinkedList(PageLinkedList *);
-	PageHeader *AddPageToLinkedListFromHeader(PageLinkedList *, PageHeader *);
+	PageHeader *AddPageHeaderToLinkedList(PageLinkedList *, PageHeader *);
 	PageHeader *AddPageToLinkedList(PageLinkedList *);
 	void RemovePageFromLinkedList(PageLinkedList *);
 	uint8_t *AddElementsToPageLinkedList(PageLinkedList *, size_t);
@@ -294,7 +294,8 @@
 		);
 	}
 
-	PageHeader *InitPageHeader(size_t pageByteCap, size_t elementByteAmount) {
+
+	static PageHeader *InitPageForPageHeader(size_t pageByteCap) {
 		if(pageByteCap == USE_DEFAULT_CAP) {
 			pageByteCap = PAGE_LINKED_LIST_BYTES_IN_PAGE_AMOUNT();
 		}
@@ -302,20 +303,33 @@
 		uint8_t *buffer = PAGE_LINKED_LIST_INIT_PAGE(pageByteCap);
 		if(buffer == NULL) { return NULL; }
 
-		PageHeader *header = (PageHeader *)(buffer);
+		return (PageHeader *)(buffer);
+	}
+
+	PageHeader *InitPageHeader(size_t pageByteCap, size_t elementByteAmount) {
+		PageHeader *header = InitPageForPageHeader(pageByteCap);
+		if(header == NULL) { return NULL; }
+
 		*header = (PageHeader) {
 			.byteAmount = sizeof(PageHeader),
-			.elementByteAmount = elementByteAmount,
-			.elementCap = (int)(pageByteCap / elementByteAmount)
+			.elementByteAmount = elementByteAmount
 		};
+
+		header->elementCap = (
+			(pageByteCap - header->byteAmount) / elementByteAmount);
 
 		return header;
 	}
 
 	PageHeader *InitPageHeaderFromHeader(PageHeader *header) {
-		return InitPageHeader(
-			header->elementCap * header->elementByteAmount,
-			header->elementByteAmount);
+		PageHeader *newHeader = InitPageForPageHeader(
+			header->elementCap * header->elementByteAmount);
+
+		if(newHeader == NULL) { return NULL; }
+
+		*newHeader = *header;
+		newHeader->elementAmount = 0;
+		return newHeader;
 	}
 
 	void DeinitPageHeader(PageHeader **header) {
@@ -329,6 +343,7 @@
 	uint8_t *NthElementInPage(PageHeader *header, size_t index) {
 		return &FirstElementInPage(header)[index * header->elementByteAmount];
 	}
+
 
 	PageLinkedList InitPageLinkedList(
 		size_t pageByteCap, size_t elementByteAmount) {
@@ -354,20 +369,30 @@
 		}
 	}
 
-	PageHeader *AddPageToLinkedListFromHeader(
+	PageHeader *AddPageHeaderToLinkedList(
 		PageLinkedList *linkedList, PageHeader *header) {
-		PageHeader *newPage = InitPageHeaderFromHeader(header);
-		if(newPage == NULL) { return NULL; }
+		if(linkedList->head == NULL) {
+			linkedList->head = header;
+		}
 
-		linkedList->tail->next = newPage;
-		newPage->prev = linkedList->tail;
+		if(linkedList->tail != NULL) {
+			linkedList->tail->next = header;
+			header->prev = linkedList->tail;
+		}
 
-		linkedList->tail = newPage;
+		linkedList->tail = header;
 		return linkedList->tail;
 	}
 
 	PageHeader *AddPageToLinkedList(PageLinkedList *linkedList) {
-		return AddPageToLinkedListFromHeader(linkedList, linkedList->tail);
+		PageHeader *header = linkedList->head == NULL
+			? InitPageHeader(
+				linkedList->defaultPageByteCap,
+				linkedList->defaultElementByteAmount)
+
+			: InitPageHeaderFromHeader(linkedList->tail);
+
+		return AddPageHeaderToLinkedList(linkedList, header);
 	}
 
 	void RemovePageFromLinkedList(PageLinkedList *linkedList) {
@@ -384,6 +409,8 @@
 
 	uint8_t *AddElementsToPageLinkedList(
 		PageLinkedList *linkedList, size_t elementAmount) {
+		if(linkedList->head == NULL) { AddPageToLinkedList(linkedList); }
+
 		size_t sizeAfterAddition = (
 			linkedList->tail->elementAmount + elementAmount);
 
