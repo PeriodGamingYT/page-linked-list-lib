@@ -323,12 +323,15 @@
 
 	PageHeader *InitPageHeaderFromHeader(PageHeader *header) {
 		PageHeader *newHeader = InitPageForPageHeader(
-			header->elementCap * header->elementByteAmount);
+			header->elementCap * header->elementByteAmount +
+			header->byteAmount);
 
 		if(newHeader == NULL) { return NULL; }
 
 		*newHeader = *header;
 		newHeader->elementAmount = 0;
+		newHeader->prev = NULL;
+		newHeader->next = NULL;
 		return newHeader;
 	}
 
@@ -411,15 +414,15 @@
 		PageLinkedList *linkedList, size_t elementAmount) {
 		if(linkedList->head == NULL) { AddPageToLinkedList(linkedList); }
 
-		size_t sizeAfterAddition = (
+		size_t elementAmountAfterAddition = (
 			linkedList->tail->elementAmount + elementAmount);
 
-		if(linkedList->tail->elementCap < sizeAfterAddition) {
+		if(linkedList->tail->elementCap < elementAmountAfterAddition) {
 			AddPageToLinkedList(linkedList);
 		}
 
 		uint8_t *result = NthElementInPage(
-			linkedList->tail, linkedList->tail->elementAmount - 1);
+			linkedList->tail, linkedList->tail->elementAmount);
 
 		linkedList->tail->elementAmount += elementAmount;
 		return result;

@@ -55,7 +55,8 @@ int main() {
 	PageLinkedList linkedList = InitPageLinkedList(
 		USE_DEFAULT_CAP, sizeof(int)); {
 		for(int i = 0; i < 200000; i++) {
-			*(int *)(AddElementsToPageLinkedList(&linkedList, 1)) = i;
+			int *element = AddElementsToPageLinkedList(&linkedList, 1);
+			*element = i;
 		}
 
 		PageLinkedListIter iter = InitPageLinkedListIter(&linkedList);
@@ -69,14 +70,14 @@ int main() {
 		}
 
 		for(int i = 0; /* ... */; i += 1000) {
-			int *result = (int *)(NthElementInPageLinkedList(&linkedList, i));
+			int *element = (int *)(NthElementInPageLinkedList(&linkedList, i));
 
-			if(result == NULL) { break; }
+			if(element == NULL) { break; }
 
 			// NOTE: This print statement won't necessarily slow the program
 			// down, but it can clog up the terminal output buffer. As such,
 			// it is commented out by default.
-			// printf("%d\n", *result);
+			// printf("%d\n", *element);
 		}
 
 		printf(
